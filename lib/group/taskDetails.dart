@@ -1,0 +1,211 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+
+class TaskDetailsPage extends StatefulWidget {
+  final String taskId;
+  final Map<String, dynamic> taskData;
+
+  TaskDetailsPage({required this.taskId, required this.taskData});
+
+  @override
+  _TaskDetailsPageState createState() => _TaskDetailsPageState();
+}
+
+class _TaskDetailsPageState extends State<TaskDetailsPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final TextEditingController _commentController = TextEditingController();
+  PlatformFile? _newFile; // To store the newly uploaded file
+
+  // Function to download a file from Firebase Storage
+  Future<void> _downloadFile(String fileUrl) async {
+    try {
+      final ref = _storage.refFromURL(fileUrl);
+      final downloadUrl = await ref.getDownloadURL();
+      // Open the file in the browser or save it locally
+      print("Download URL: $downloadUrl");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('File downloaded successfully!')),
+      );
+    } catch (e) {
+      print("Error downloading file: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to download file.')),
+      );
+    }
+  }
+
+  // Function to upload a new file to Firebase Storage
+  Future<void> _uploadNewFile() async {
+    FilePickerResult? result =
+        await FilePicker.platform.pickFiles(); // Pick any file
+    if (result != null) {
+      setState(() {
+        _newFile = result.files.first; // Store the selected file
+      });
+      try {
+        Reference storageRef = _storage
+            .ref()
+            .child('task_files/${widget.taskId}/${_newFile!.name}');
+        UploadTask uploadTask =
+            storageRef.putData(_newFile!.bytes!); // Upload file data
+        TaskSnapshot snapshot = await uploadTask;
+        String fileUrl = await snapshot.ref.getDownloadURL();
+        // Update the task document with the new file URL
+        await _firestore.collection('project_tasks').doc(widget.taskId).update({
+          'fileUrl': fileUrl,
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File uploaded successfully!')),
+        );
+      } catch (e) {
+        print("Error uploading file: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload file.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String? assignedTo = widget.taskData['assignedTo'];
+    String? fileUrl = widget.taskData['fileUrl'];
+    bool isAssignedUser = assignedTo == FirebaseAuth.instance.currentUser!.uid;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Task Details'),
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Title: ${widget.taskData['title']}',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Description: ${widget.taskData['description'] ?? 'No description'}',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Due Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(widget.taskData['dueDate']))}',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Assigned To: ${widget.taskData['assignedTo'] ?? 'Unassigned'}',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Priority: ${widget.taskData['priority'] ?? 'Normal'}',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            if (fileUrl != null)
+              Row(
+                children: [
+                  ElevatedButton(
+                    onPressed:
+                        isAssignedUser ? () => _downloadFile(fileUrl) : null,
+                    child: Text('Download File'),
+                  ),
+                  SizedBox(width: 10),
+                  if (isAssignedUser)
+                    ElevatedButton(
+                      onPressed: _uploadNewFile,
+                      child: Text('Upload New File'),
+                    ),
+                ],
+              ),
+            SizedBox(height: 16),
+            Text(
+              'Comments:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Divider(),
+            StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('project_tasks')
+                  .doc(widget.taskId)
+                  .collection('comments')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return CircularProgressIndicator();
+                if (snapshot.data!.docs.isEmpty) {
+                  return Text('No comments yet.');
+                }
+                return Column(
+                  children: snapshot.data!.docs.map((doc) {
+                    Map<String, dynamic> comment =
+                        doc.data() as Map<String, dynamic>;
+                    String userId = comment['userId'];
+                    // Safely handle the case where 'timestamp' is null
+                    Timestamp? timestamp = comment['timestamp'] as Timestamp?;
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: _firestore.collection('users').doc(userId).get(),
+                      builder: (context, userSnapshot) {
+                        if (!userSnapshot.hasData)
+                          return CircularProgressIndicator();
+                        String username = userSnapshot.data!.exists
+                            ? userSnapshot.data!['username']
+                            : 'Unknown';
+                        return ListTile(
+                          title: Text(comment['text']),
+                          subtitle: Text(
+                            '$username - ${timestamp != null ? DateFormat('yyyy-MM-dd HH:mm').format(timestamp.toDate()) : "Pending..."}',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        );
+                      },
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    decoration: InputDecoration(
+                      labelText: 'Add a comment',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.send),
+                  onPressed: () async {
+                    if (_commentController.text.trim().isEmpty) return;
+                    String userId = FirebaseAuth.instance.currentUser!.uid;
+                    await _firestore
+                        .collection('project_tasks')
+                        .doc(widget.taskId)
+                        .collection('comments')
+                        .add({
+                      'text': _commentController.text.trim(),
+                      'timestamp': FieldValue.serverTimestamp(),
+                      'userId': userId,
+                    });
+                    _commentController.clear();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
