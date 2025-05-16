@@ -1,11 +1,11 @@
 // projectUI.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_3/group/taskDetails.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'addTaskProject.dart';
 import 'editTaskProject.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
+import 'taskDetails.dart';
 
 class ProjectUI extends StatefulWidget {
   final String projectId;
@@ -19,7 +19,7 @@ class ProjectUI extends StatefulWidget {
 
 class _ProjectUIState extends State<ProjectUI> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance; // Initialize Firebase Auth
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Color _getPriorityColor(String priority) {
     switch (priority) {
@@ -98,11 +98,9 @@ class _ProjectUIState extends State<ProjectUI> {
     DocumentSnapshot currentUserDoc =
         await _firestore.collection('users').doc(currentUserId).get();
     String currentUsername = currentUserDoc['username'] ?? 'Unknown';
-
     DocumentSnapshot projectDoc =
         await _firestore.collection('projects').doc(widget.projectId).get();
     String clientId = projectDoc['client'] ?? '';
-
     return widget.isManager ||
         currentUserId == clientId ||
         currentUsername == assignedTo;
@@ -136,8 +134,9 @@ class _ProjectUIState extends State<ProjectUI> {
             .where('projectId', isEqualTo: widget.projectId)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
+          }
           if (snapshot.data!.docs.isEmpty) {
             return Center(
               child: Column(
@@ -157,10 +156,8 @@ class _ProjectUIState extends State<ProjectUI> {
           return ListView(
             children: snapshot.data!.docs.map((task) {
               DateTime dueDate = DateTime.parse(task['dueDate']);
-              String assignedUsername =
-                  task['assignedTo'] ?? 'Unassigned'; // Default if missing
-              String taskStatus = task['status'] ??
-                  'Started'; // Default to "Started" if missing
+              String assignedUsername = task['assignedTo'] ?? 'Unassigned';
+              String taskStatus = task['status'] ?? 'Started';
 
               return FutureBuilder<DocumentSnapshot>(
                 future: _firestore
@@ -174,7 +171,6 @@ class _ProjectUIState extends State<ProjectUI> {
                       subtitle: Text('Loading...'),
                     );
                   }
-
                   String currentUsername =
                       userSnapshot.data!['username'] ?? 'Unknown';
                   bool isCurrentUserAssigned =

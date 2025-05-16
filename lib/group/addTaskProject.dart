@@ -1,3 +1,4 @@
+// addTaskProject.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -27,7 +28,7 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
   TimeOfDay? _dueTime;
   String _priority = 'Normal';
   List<Map<String, String>> _teamMembers = [];
-  PlatformFile? _file; // To store the selected file
+  PlatformFile? _file;
 
   @override
   void initState() {
@@ -63,30 +64,31 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
   }
 
   Future<void> _pickFile() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles();
-      if (result != null) {
-        setState(() {
-          _file = result.files.first; // Store the selected file
-        });
-        print("File picked: ${_file!.name}");
-      } else {
-        print("No file selected.");
-      }
-    } catch (e) {
-      print("Error picking file: $e");
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _file = result.files.first;
+      });
+      print("File picked: ${_file!.name}");
+    } else {
+      print("No file selected.");
     }
   }
 
   Future<String?> _uploadFile(String taskId) async {
-    if (_file == null) return null;
+    if (_file == null || _file!.bytes == null) {
+      print("No file selected or file data is invalid.");
+      return null;
+    }
 
     try {
       Reference storageRef =
           _storage.ref().child('task_files/$taskId/${_file!.name}');
       UploadTask uploadTask = storageRef.putData(_file!.bytes!);
       TaskSnapshot snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      String fileUrl = await snapshot.ref.getDownloadURL();
+      print("File uploaded successfully. Download URL: $fileUrl");
+      return fileUrl;
     } catch (e) {
       print("Error uploading file: $e");
       return null;
@@ -117,15 +119,16 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
     // Upload file and get download URL
     String? fileUrl = await _uploadFile(taskId);
 
+    // Save task data to Firestore
     await _firestore.collection('project_tasks').doc(taskId).set({
       'title': _taskTitleController.text,
       'description': _taskDescriptionController.text,
       'assignedTo': _assignedToController.text,
       'dueDate': combinedDateTime.toIso8601String(),
       'priority': _priority,
-      'status': 'Pending',
+      'status': 'Started',
       'projectId': widget.projectId,
-      'fileUrl': fileUrl, // Store file URL if uploaded
+      'fileUrl': fileUrl,
     });
 
     Navigator.pop(context); // Go back to the project page

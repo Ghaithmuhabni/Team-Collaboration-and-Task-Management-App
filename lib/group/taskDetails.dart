@@ -1,9 +1,10 @@
+// taskDetails.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
 
 class TaskDetailsPage extends StatefulWidget {
   final String taskId;
@@ -19,14 +20,12 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final TextEditingController _commentController = TextEditingController();
-  PlatformFile? _newFile; // To store the newly uploaded file
+  PlatformFile? _newFile;
 
-  // Function to download a file from Firebase Storage
   Future<void> _downloadFile(String fileUrl) async {
     try {
       final ref = _storage.refFromURL(fileUrl);
       final downloadUrl = await ref.getDownloadURL();
-      // Open the file in the browser or save it locally
       print("Download URL: $downloadUrl");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('File downloaded successfully!')),
@@ -39,26 +38,24 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
     }
   }
 
-  // Function to upload a new file to Firebase Storage
   Future<void> _uploadNewFile() async {
-    FilePickerResult? result =
-        await FilePicker.platform.pickFiles(); // Pick any file
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
     if (result != null) {
       setState(() {
-        _newFile = result.files.first; // Store the selected file
+        _newFile = result.files.first;
       });
       try {
         Reference storageRef = _storage
             .ref()
             .child('task_files/${widget.taskId}/${_newFile!.name}');
-        UploadTask uploadTask =
-            storageRef.putData(_newFile!.bytes!); // Upload file data
+        UploadTask uploadTask = storageRef.putData(_newFile!.bytes!);
         TaskSnapshot snapshot = await uploadTask;
         String fileUrl = await snapshot.ref.getDownloadURL();
-        // Update the task document with the new file URL
+
         await _firestore.collection('project_tasks').doc(widget.taskId).update({
           'fileUrl': fileUrl,
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('File uploaded successfully!')),
         );
@@ -111,19 +108,48 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 16),
-            if (fileUrl != null)
+            if (fileUrl != null && fileUrl.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Attached File:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.attach_file),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          fileUrl.split('/').last,
+                          style: TextStyle(fontSize: 16),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _downloadFile(fileUrl),
+                        child: Text('Download'),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            else
+              Text('No file attached.'),
+            if (isAssignedUser)
               Row(
                 children: [
                   ElevatedButton(
-                    onPressed:
-                        isAssignedUser ? () => _downloadFile(fileUrl) : null,
-                    child: Text('Download File'),
+                    onPressed: _uploadNewFile,
+                    child: Text('Upload New File'),
                   ),
                   SizedBox(width: 10),
-                  if (isAssignedUser)
-                    ElevatedButton(
-                      onPressed: _uploadNewFile,
-                      child: Text('Upload New File'),
+                  if (_newFile != null)
+                    Text(
+                      'Selected File: ${_newFile!.name}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                 ],
               ),
@@ -150,7 +176,6 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
                     Map<String, dynamic> comment =
                         doc.data() as Map<String, dynamic>;
                     String userId = comment['userId'];
-                    // Safely handle the case where 'timestamp' is null
                     Timestamp? timestamp = comment['timestamp'] as Timestamp?;
                     return FutureBuilder<DocumentSnapshot>(
                       future: _firestore.collection('users').doc(userId).get(),

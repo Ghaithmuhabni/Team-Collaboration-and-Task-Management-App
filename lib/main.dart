@@ -20,6 +20,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       home: AuthWrapper(), // Entry point for auth logic
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -95,7 +96,9 @@ class AuthWrapper extends StatelessWidget {
         }
         // Show a loading indicator while checking auth state
         return Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
         );
       },
     );
