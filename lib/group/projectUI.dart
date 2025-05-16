@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'addTaskProject.dart';
 import 'editTaskProject.dart';
 import 'taskDetails.dart';
+import 'conversationScreen.dart';
 
 class ProjectUI extends StatefulWidget {
   final String projectId;
@@ -106,12 +107,99 @@ class _ProjectUIState extends State<ProjectUI> {
         currentUsername == assignedTo;
   }
 
+  Future<List<Map<String, String>>> _fetchProjectMembers() async {
+    try {
+      DocumentSnapshot projectDoc =
+          await _firestore.collection('projects').doc(widget.projectId).get();
+      if (!projectDoc.exists) return [];
+      List<dynamic> memberIds = projectDoc['members'] ?? [];
+      List<Map<String, String>> members = [];
+      for (String memberId in memberIds) {
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(memberId).get();
+        if (userDoc.exists) {
+          members.add({
+            'id': memberId,
+            'username': userDoc['username'] ?? 'Unknown',
+          });
+        }
+      }
+      return members;
+    } catch (e) {
+      print("Error fetching project members: $e");
+      return [];
+    }
+  }
+
+  String _getConversationId(String otherUserId) {
+    String currentUserId = _auth.currentUser!.uid;
+    List<String> ids = [currentUserId, otherUserId];
+    ids.sort();
+    return ids.join('_');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage Tasks'),
+        title: FutureBuilder<DocumentSnapshot>(
+          future: _firestore.collection('projects').doc(widget.projectId).get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Text('Loading...');
+            }
+            if (snapshot.hasError ||
+                !snapshot.hasData ||
+                !snapshot.data!.exists) {
+              return Text('Unnamed Project');
+            }
+            return Text(snapshot.data!['title'] ?? 'Unnamed Project');
+          },
+        ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.group),
+            onPressed: () async {
+              List<Map<String, String>> members = await _fetchProjectMembers();
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Project Members'),
+                  content: members.isEmpty
+                      ? Text('No members found.')
+                      : SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: members.map((member) {
+                              return ListTile(
+                                title: Text(member['username']!),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ConversationScreen(
+                                        conversationId:
+                                            _getConversationId(member['id']!),
+                                        otherUserId: member['id']!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Close'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           if (widget.isManager)
             IconButton(
               icon: Icon(Icons.add),
@@ -158,7 +246,6 @@ class _ProjectUIState extends State<ProjectUI> {
               DateTime dueDate = DateTime.parse(task['dueDate']);
               String assignedUsername = task['assignedTo'] ?? 'Unassigned';
               String taskStatus = task['status'] ?? 'Started';
-
               return FutureBuilder<DocumentSnapshot>(
                 future: _firestore
                     .collection('users')
@@ -175,7 +262,6 @@ class _ProjectUIState extends State<ProjectUI> {
                       userSnapshot.data!['username'] ?? 'Unknown';
                   bool isCurrentUserAssigned =
                       currentUsername == assignedUsername;
-
                   return Card(
                     margin: EdgeInsets.all(10),
                     color: _getPriorityColor(task['priority']),

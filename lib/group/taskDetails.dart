@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:file_picker/file_picker.dart';
 
 class TaskDetailsPage extends StatefulWidget {
   final String taskId;
@@ -20,7 +19,6 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final TextEditingController _commentController = TextEditingController();
-  PlatformFile? _newFile;
 
   Future<void> _downloadFile(String fileUrl) async {
     try {
@@ -38,41 +36,10 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
     }
   }
 
-  Future<void> _uploadNewFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-    if (result != null) {
-      setState(() {
-        _newFile = result.files.first;
-      });
-      try {
-        Reference storageRef = _storage
-            .ref()
-            .child('task_files/${widget.taskId}/${_newFile!.name}');
-        UploadTask uploadTask = storageRef.putData(_newFile!.bytes!);
-        TaskSnapshot snapshot = await uploadTask;
-        String fileUrl = await snapshot.ref.getDownloadURL();
-
-        await _firestore.collection('project_tasks').doc(widget.taskId).update({
-          'fileUrl': fileUrl,
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File uploaded successfully!')),
-        );
-      } catch (e) {
-        print("Error uploading file: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload file.')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     String? assignedTo = widget.taskData['assignedTo'];
     String? fileUrl = widget.taskData['fileUrl'];
-    bool isAssignedUser = assignedTo == FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
       appBar: AppBar(
@@ -138,21 +105,6 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
               )
             else
               Text('No file attached.'),
-            if (isAssignedUser)
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: _uploadNewFile,
-                    child: Text('Upload New File'),
-                  ),
-                  SizedBox(width: 10),
-                  if (_newFile != null)
-                    Text(
-                      'Selected File: ${_newFile!.name}',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                ],
-              ),
             SizedBox(height: 16),
             Text(
               'Comments:',

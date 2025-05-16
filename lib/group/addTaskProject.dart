@@ -69,9 +69,6 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
       setState(() {
         _file = result.files.first;
       });
-      print("File picked: ${_file!.name}");
-    } else {
-      print("No file selected.");
     }
   }
 
@@ -80,15 +77,12 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
       print("No file selected or file data is invalid.");
       return null;
     }
-
     try {
       Reference storageRef =
           _storage.ref().child('task_files/$taskId/${_file!.name}');
       UploadTask uploadTask = storageRef.putData(_file!.bytes!);
       TaskSnapshot snapshot = await uploadTask;
-      String fileUrl = await snapshot.ref.getDownloadURL();
-      print("File uploaded successfully. Download URL: $fileUrl");
-      return fileUrl;
+      return await snapshot.ref.getDownloadURL();
     } catch (e) {
       print("Error uploading file: $e");
       return null;
