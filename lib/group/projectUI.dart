@@ -107,36 +107,40 @@ class _ProjectUIState extends State<ProjectUI> {
         currentUsername == assignedTo;
   }
 
-  Future<List<Map<String, String>>> _fetchProjectMembers() async {
-    try {
-      DocumentSnapshot projectDoc =
-          await _firestore.collection('projects').doc(widget.projectId).get();
-      if (!projectDoc.exists) return [];
-      List<dynamic> memberIds = projectDoc['members'] ?? [];
-      List<Map<String, String>> members = [];
-      for (String memberId in memberIds) {
-        DocumentSnapshot userDoc =
-            await _firestore.collection('users').doc(memberId).get();
-        if (userDoc.exists) {
-          members.add({
-            'id': memberId,
-            'username': userDoc['username'] ?? 'Unknown',
-          });
-        }
-      }
-      return members;
-    } catch (e) {
-      print("Error fetching project members: $e");
-      return [];
-    }
-  }
-
-  String _getConversationId(String otherUserId) {
+Future<List<Map<String, String>>> _fetchProjectMembers() async {
+  try {
+    DocumentSnapshot projectDoc =
+        await _firestore.collection('projects').doc(widget.projectId).get();
+    if (!projectDoc.exists) return [];
+    List<dynamic> memberIds = projectDoc['members'] ?? [];
+    List<Map<String, String>> members = [];
     String currentUserId = _auth.currentUser!.uid;
-    List<String> ids = [currentUserId, otherUserId];
-    ids.sort();
-    return ids.join('_');
+
+    for (String memberId in memberIds) {
+      if (memberId == currentUserId) continue; // Skip the current user
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(memberId).get();
+      if (userDoc.exists) {
+        members.add({
+          'id': memberId,
+          'username': userDoc['username'] ?? 'Unknown',
+        });
+      }
+    }
+
+    return members;
+  } catch (e) {
+    print("Error fetching project members: $e");
+    return [];
   }
+}
+
+String _getConversationId(String otherUserId) {
+  String currentUserId = _auth.currentUser!.uid;
+  List<String> ids = [currentUserId, otherUserId];
+  ids.sort(); // Sort alphabetically to avoid duplicates
+  return ids.join('_');
+}
 
   @override
   Widget build(BuildContext context) {
@@ -200,6 +204,7 @@ class _ProjectUIState extends State<ProjectUI> {
               );
             },
           ),
+          
           if (widget.isManager)
             IconButton(
               icon: Icon(Icons.add),

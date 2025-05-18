@@ -38,7 +38,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    String? assignedTo = widget.taskData['assignedTo'];
+    // String? assignedTo = widget.taskData['assignedTo'];
     String? fileUrl = widget.taskData['fileUrl'];
 
     return Scaffold(

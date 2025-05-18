@@ -6,6 +6,7 @@ import 'package:flutter_application_3/componants/drawer.dart';
 import 'package:flutter_application_3/group/groupConversationPage.dart';
 import 'addProject.dart';
 import 'projectUI.dart';
+import 'conversationScreen.dart'; // Import the chat screen
 
 class GroupUIPage extends StatefulWidget {
   @override
@@ -22,14 +23,31 @@ class _GroupUIPageState extends State<GroupUIPage> {
     return userDoc['username'] ?? 'Unknown';
   }
 
-  Future<List<String>> _getMemberNames(List<dynamic> memberIds) async {
-    List<String> memberNames = [];
+  Future<List<Map<String, String>>> _fetchProjectMembers(
+      List<dynamic> memberIds) async {
+    List<Map<String, String>> members = [];
+    String currentUserId = _auth.currentUser!.uid;
+
     for (String memberId in memberIds) {
+      if (memberId == currentUserId) continue; // Skip the current user
       DocumentSnapshot userDoc =
           await _firestore.collection('users').doc(memberId).get();
-      memberNames.add(userDoc['username'] ?? 'Unknown');
+      if (userDoc.exists) {
+        members.add({
+          'id': memberId,
+          'username': userDoc['username'] ?? 'Unknown',
+        });
+      }
     }
-    return memberNames;
+
+    return members;
+  }
+
+  String _getConversationId(String otherUserId) {
+    String currentUserId = _auth.currentUser!.uid;
+    List<String> ids = [currentUserId, otherUserId];
+    ids.sort(); // Sort alphabetically to avoid duplicates
+    return ids.join('_');
   }
 
   Future<void> _toggleProjectStatus(
@@ -86,8 +104,8 @@ class _GroupUIPageState extends State<GroupUIPage> {
                   if (!managerSnapshot.hasData)
                     return CircularProgressIndicator();
 
-                  return FutureBuilder<List<String>>(
-                    future: _getMemberNames(project['members']),
+                  return FutureBuilder<List<Map<String, String>>>(
+                    future: _fetchProjectMembers(project['members']),
                     builder: (context, membersSnapshot) {
                       if (!membersSnapshot.hasData)
                         return CircularProgressIndicator();
@@ -143,17 +161,44 @@ class _GroupUIPageState extends State<GroupUIPage> {
                               // Group Icon (Members List)
                               IconButton(
                                 icon: Icon(Icons.group),
-                                onPressed: () {
+                                onPressed: () async {
+                                  List<Map<String, String>> members =
+                                      await _fetchProjectMembers(
+                                          project['members']);
                                   showDialog(
                                     context: context,
                                     builder: (context) => AlertDialog(
                                       title: Text('Project Members'),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: membersSnapshot.data!
-                                            .map((name) => Text(name))
-                                            .toList(),
-                                      ),
+                                      content: members.isEmpty
+                                          ? Text('No members found.')
+                                          : SingleChildScrollView(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: members.map((member) {
+                                                  return ListTile(
+                                                    title: Text(
+                                                        member['username']!),
+                                                    onTap: () {
+                                                      Navigator.pop(context);
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              ConversationScreen(
+                                                            conversationId:
+                                                                _getConversationId(
+                                                                    member[
+                                                                        'id']!),
+                                                            otherUserId:
+                                                                member['id']!,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
+                                                  );
+                                                }).toList(),
+                                              ),
+                                            ),
                                       actions: [
                                         TextButton(
                                           onPressed: () =>

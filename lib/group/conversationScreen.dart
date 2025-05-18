@@ -24,22 +24,54 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    await _firestore
-        .collection('messages')
-        .doc(widget.conversationId)
-        .collection('chats')
-        .add({
-      'senderId': currentUserId,
-      'text': text.trim(),
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    try {
+      // Check if the conversation document exists
+      DocumentSnapshot conversationDoc = await _firestore
+          .collection('messages')
+          .doc(widget.conversationId)
+          .get();
 
-    await _firestore.collection('messages').doc(widget.conversationId).update({
-      'lastMessage': text.trim(),
-      'lastMessageTimestamp': FieldValue.serverTimestamp(),
-    });
+      if (!conversationDoc.exists) {
+        // Create the conversation document if it doesn't exist
+        await _firestore.collection('messages').doc(widget.conversationId).set({
+          'lastMessage': text.trim(),
+          'lastMessageTimestamp': FieldValue.serverTimestamp(),
+        });
+      }
 
-    _messageController.clear();
+      // Add the message to Firestore
+      await _firestore
+          .collection('messages')
+          .doc(widget.conversationId)
+          .collection('chats')
+          .add({
+        'senderId': currentUserId,
+        'text': text.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // Update the last message and timestamp in the conversation document
+      await _firestore
+          .collection('messages')
+          .doc(widget.conversationId)
+          .update({
+        'lastMessage': text.trim(),
+        'lastMessageTimestamp': FieldValue.serverTimestamp(),
+      });
+
+      // Clear the text field after successful message sending
+      setState(() {
+        _messageController.clear();
+      });
+    } catch (e) {
+      // Log the error for debugging purposes
+      print("Error sending message: $e");
+
+      // Show a SnackBar only if there's a genuine error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send message.')),
+      );
+    }
   }
 
   @override
