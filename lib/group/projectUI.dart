@@ -1,12 +1,13 @@
 // projectUI.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_3/group/groupConversationPage.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'addTaskProject.dart';
 import 'editTaskProject.dart';
 import 'taskDetails.dart';
-import 'conversationScreen.dart';
+import 'conversationScreen.dart'; // Import the chat screen
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProjectUI extends StatefulWidget {
   final String projectId;
@@ -107,40 +108,71 @@ class _ProjectUIState extends State<ProjectUI> {
         currentUsername == assignedTo;
   }
 
-Future<List<Map<String, String>>> _fetchProjectMembers() async {
-  try {
-    DocumentSnapshot projectDoc =
-        await _firestore.collection('projects').doc(widget.projectId).get();
-    if (!projectDoc.exists) return [];
-    List<dynamic> memberIds = projectDoc['members'] ?? [];
-    List<Map<String, String>> members = [];
-    String currentUserId = _auth.currentUser!.uid;
+  Future<List<Map<String, String>>> _fetchProjectMembers(
+      String projectId) async {
+    try {
+      DocumentSnapshot projectDoc =
+          await _firestore.collection('projects').doc(projectId).get();
+      if (!projectDoc.exists) return [];
 
-    for (String memberId in memberIds) {
-      if (memberId == currentUserId) continue; // Skip the current user
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(memberId).get();
-      if (userDoc.exists) {
-        members.add({
-          'id': memberId,
-          'username': userDoc['username'] ?? 'Unknown',
-        });
+      String managerId = projectDoc['managerId'];
+      String clientId = projectDoc['client'] ?? '';
+      List<dynamic> memberIds = projectDoc['members'] ?? [];
+      List<Map<String, String>> members = [];
+      String currentUserId = _auth.currentUser!.uid;
+
+      // Add the manager
+      if (managerId != currentUserId) {
+        DocumentSnapshot managerDoc =
+            await _firestore.collection('users').doc(managerId).get();
+        if (managerDoc.exists) {
+          members.add({
+            'id': managerId,
+            'username': '${managerDoc['username']} (Manager)',
+          });
+        }
       }
+
+      // Add the client
+      if (clientId.isNotEmpty && clientId != currentUserId) {
+        DocumentSnapshot clientDoc =
+            await _firestore.collection('users').doc(clientId).get();
+        if (clientDoc.exists) {
+          members.add({
+            'id': clientId,
+            'username': '${clientDoc['username']} (Client)',
+          });
+        }
+      }
+
+      // Add the members
+      for (String memberId in memberIds) {
+        if (memberId == currentUserId ||
+            memberId == managerId ||
+            memberId == clientId) continue;
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(memberId).get();
+        if (userDoc.exists) {
+          members.add({
+            'id': memberId,
+            'username': '${userDoc['username']} (Member)',
+          });
+        }
+      }
+
+      return members;
+    } catch (e) {
+      print("Error fetching project members: $e");
+      return [];
     }
-
-    return members;
-  } catch (e) {
-    print("Error fetching project members: $e");
-    return [];
   }
-}
 
-String _getConversationId(String otherUserId) {
-  String currentUserId = _auth.currentUser!.uid;
-  List<String> ids = [currentUserId, otherUserId];
-  ids.sort(); // Sort alphabetically to avoid duplicates
-  return ids.join('_');
-}
+  String _getConversationId(String otherUserId) {
+    String currentUserId = _auth.currentUser!.uid;
+    List<String> ids = [currentUserId, otherUserId];
+    ids.sort(); // Sort alphabetically to avoid duplicates
+    return ids.join('_');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -162,9 +194,23 @@ String _getConversationId(String otherUserId) {
         ),
         actions: [
           IconButton(
+            icon: Icon(Icons.forum),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GroupConversationPage(
+                    projectId: widget.projectId,
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: Icon(Icons.group),
             onPressed: () async {
-              List<Map<String, String>> members = await _fetchProjectMembers();
+              List<Map<String, String>> members =
+                  await _fetchProjectMembers(widget.projectId);
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -204,7 +250,6 @@ String _getConversationId(String otherUserId) {
               );
             },
           ),
-          
           if (widget.isManager)
             IconButton(
               icon: Icon(Icons.add),
@@ -251,6 +296,7 @@ String _getConversationId(String otherUserId) {
               DateTime dueDate = DateTime.parse(task['dueDate']);
               String assignedUsername = task['assignedTo'] ?? 'Unassigned';
               String taskStatus = task['status'] ?? 'Started';
+
               return FutureBuilder<DocumentSnapshot>(
                 future: _firestore
                     .collection('users')
@@ -267,6 +313,7 @@ String _getConversationId(String otherUserId) {
                       userSnapshot.data!['username'] ?? 'Unknown';
                   bool isCurrentUserAssigned =
                       currentUsername == assignedUsername;
+
                   return Card(
                     margin: EdgeInsets.all(10),
                     color: _getPriorityColor(task['priority']),

@@ -24,20 +24,59 @@ class _GroupUIPageState extends State<GroupUIPage> {
   }
 
   Future<List<Map<String, String>>> _fetchProjectMembers(
-      List<dynamic> memberIds) async {
+      List<dynamic> memberIds, String projectId) async {
     List<Map<String, String>> members = [];
     String currentUserId = _auth.currentUser!.uid;
 
-    for (String memberId in memberIds) {
-      if (memberId == currentUserId) continue; // Skip the current user
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(memberId).get();
-      if (userDoc.exists) {
-        members.add({
-          'id': memberId,
-          'username': userDoc['username'] ?? 'Unknown',
-        });
+    try {
+      // Fetch project details to get managerId, clientId, and members
+      DocumentSnapshot projectDoc =
+          await _firestore.collection('projects').doc(projectId).get();
+      if (!projectDoc.exists) return [];
+
+      String managerId = projectDoc['managerId'];
+      String clientId = projectDoc['client'] ?? '';
+
+      // Add the manager
+      if (managerId != currentUserId) {
+        DocumentSnapshot managerDoc =
+            await _firestore.collection('users').doc(managerId).get();
+        if (managerDoc.exists) {
+          members.add({
+            'id': managerId,
+            'username': '${managerDoc['username']} (Manager)',
+          });
+        }
       }
+
+      // Add the client
+      if (clientId.isNotEmpty && clientId != currentUserId) {
+        DocumentSnapshot clientDoc =
+            await _firestore.collection('users').doc(clientId).get();
+        if (clientDoc.exists) {
+          members.add({
+            'id': clientId,
+            'username': '${clientDoc['username']} (Client)',
+          });
+        }
+      }
+
+      // Add the members
+      for (String memberId in memberIds) {
+        if (memberId == currentUserId ||
+            memberId == managerId ||
+            memberId == clientId) continue; // Skip duplicates
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(memberId).get();
+        if (userDoc.exists) {
+          members.add({
+            'id': memberId,
+            'username': '${userDoc['username']} (Member)',
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching project members: $e");
     }
 
     return members;
@@ -105,7 +144,8 @@ class _GroupUIPageState extends State<GroupUIPage> {
                     return CircularProgressIndicator();
 
                   return FutureBuilder<List<Map<String, String>>>(
-                    future: _fetchProjectMembers(project['members']),
+                    future:
+                        _fetchProjectMembers(project['members'], project.id),
                     builder: (context, membersSnapshot) {
                       if (!membersSnapshot.hasData)
                         return CircularProgressIndicator();
@@ -164,7 +204,7 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                 onPressed: () async {
                                   List<Map<String, String>> members =
                                       await _fetchProjectMembers(
-                                          project['members']);
+                                          project['members'], project.id);
                                   showDialog(
                                     context: context,
                                     builder: (context) => AlertDialog(
