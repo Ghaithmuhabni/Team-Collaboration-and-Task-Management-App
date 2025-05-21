@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'addTaskProject.dart';
 import 'editTaskProject.dart';
 import 'taskDetails.dart';
-import 'conversationScreen.dart'; // Import the chat screen
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ProjectUI extends StatefulWidget {
@@ -108,145 +107,93 @@ class _ProjectUIState extends State<ProjectUI> {
         currentUsername == assignedTo;
   }
 
-  Future<List<Map<String, String>>> _fetchProjectMembers(
-      String projectId) async {
-    try {
-      DocumentSnapshot projectDoc =
-          await _firestore.collection('projects').doc(projectId).get();
-      if (!projectDoc.exists) return [];
-
-      String managerId = projectDoc['managerId'];
-      String clientId = projectDoc['client'] ?? '';
-      List<dynamic> memberIds = projectDoc['members'] ?? [];
-      List<Map<String, String>> members = [];
-      String currentUserId = _auth.currentUser!.uid;
-
-      // Add the manager
-      if (managerId != currentUserId) {
-        DocumentSnapshot managerDoc =
-            await _firestore.collection('users').doc(managerId).get();
-        if (managerDoc.exists) {
-          members.add({
-            'id': managerId,
-            'username': '${managerDoc['username']} (Manager)',
-          });
-        }
-      }
-
-      // Add the client
-      if (clientId.isNotEmpty && clientId != currentUserId) {
-        DocumentSnapshot clientDoc =
-            await _firestore.collection('users').doc(clientId).get();
-        if (clientDoc.exists) {
-          members.add({
-            'id': clientId,
-            'username': '${clientDoc['username']} (Client)',
-          });
-        }
-      }
-
-      // Add the members
-      for (String memberId in memberIds) {
-        if (memberId == currentUserId ||
-            memberId == managerId ||
-            memberId == clientId) continue;
-        DocumentSnapshot userDoc =
-            await _firestore.collection('users').doc(memberId).get();
-        if (userDoc.exists) {
-          members.add({
-            'id': memberId,
-            'username': '${userDoc['username']} (Member)',
-          });
-        }
-      }
-
-      return members;
-    } catch (e) {
-      print("Error fetching project members: $e");
-      return [];
-    }
-  }
-
-  String _getConversationId(String otherUserId) {
-    String currentUserId = _auth.currentUser!.uid;
-    List<String> ids = [currentUserId, otherUserId];
-    ids.sort(); // Sort alphabetically to avoid duplicates
-    return ids.join('_');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: FutureBuilder<DocumentSnapshot>(
-          future: _firestore.collection('projects').doc(widget.projectId).get(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Text('Loading...');
-            }
-            if (snapshot.hasError ||
-                !snapshot.hasData ||
-                !snapshot.data!.exists) {
-              return Text('Unnamed Project');
-            }
-            return Text(snapshot.data!['title'] ?? 'Unnamed Project');
-          },
-        ),
+        title: Text('Manage Tasks'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.forum),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => GroupConversationPage(
-                    projectId: widget.projectId,
-                  ),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.group),
-            onPressed: () async {
-              List<Map<String, String>> members =
-                  await _fetchProjectMembers(widget.projectId);
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('Project Members'),
-                  content: members.isEmpty
-                      ? Text('No members found.')
-                      : SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: members.map((member) {
-                              return ListTile(
-                                title: Text(member['username']!),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ConversationScreen(
-                                        conversationId:
-                                            _getConversationId(member['id']!),
-                                        otherUserId: member['id']!,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            }).toList(),
+          StreamBuilder<DocumentSnapshot>(
+            stream: _firestore
+                .collection('project_conversation')
+                .doc(widget.projectId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return IconButton(
+                  icon: Icon(Icons.forum),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupConversationPage(
+                          projectId: widget.projectId,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }
+
+              Map<String, dynamic>? data =
+                  snapshot.data?.data() as Map<String, dynamic>?;
+              String currentUserId = _auth.currentUser!.uid;
+              Timestamp lastMessageTimestamp =
+                  data?['lastMessageTimestamp'] as Timestamp? ?? Timestamp(0, 0);
+              Timestamp lastSeenTimestamp =
+                  (data?['lastSeen'] as Map<String, dynamic>? ?? {})[currentUserId] as Timestamp? ??
+                      Timestamp(0, 0);
+
+              bool hasUnreadMessages =
+                  lastMessageTimestamp.compareTo(lastSeenTimestamp) > 0;
+
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.forum),
+                    onPressed: () async {
+                      // Mark messages as read by updating the lastSeen timestamp
+                      await _firestore
+                          .collection('project_conversation')
+                          .doc(widget.projectId)
+                          .update({
+                        'lastSeen.$currentUserId': FieldValue.serverTimestamp(),
+                      });
+
+                      // Navigate to the chat screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GroupConversationPage(
+                            projectId: widget.projectId,
                           ),
                         ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Close'),
+                      );
+                    },
+                  ),
+                  if (hasUnreadMessages)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        constraints: BoxConstraints(minWidth: 12, minHeight: 12),
+                        child: Text(
+                          '!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                ],
               );
             },
           ),

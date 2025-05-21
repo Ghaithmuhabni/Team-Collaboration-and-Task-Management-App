@@ -27,13 +27,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
     try {
       // Check if the conversation document exists
       DocumentSnapshot conversationDoc = await _firestore
-          .collection('messages')
+          .collection('one_one_conversation')
           .doc(widget.conversationId)
           .get();
 
       if (!conversationDoc.exists) {
         // Create the conversation document if it doesn't exist
-        await _firestore.collection('messages').doc(widget.conversationId).set({
+        await _firestore
+            .collection('one_one_conversation')
+            .doc(widget.conversationId)
+            .set({
           'lastMessage': text.trim(),
           'lastMessageTimestamp': FieldValue.serverTimestamp(),
         });
@@ -41,7 +44,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
       // Add the message to Firestore
       await _firestore
-          .collection('messages')
+          .collection('one_one_conversation')
           .doc(widget.conversationId)
           .collection('chats')
           .add({
@@ -52,7 +55,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
       // Update the last message and timestamp in the conversation document
       await _firestore
-          .collection('messages')
+          .collection('one_one_conversation')
           .doc(widget.conversationId)
           .update({
         'lastMessage': text.trim(),
@@ -91,7 +94,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
-                  .collection('messages')
+                  .collection('one_one_conversation')
                   .doc(widget.conversationId)
                   .collection('chats')
                   .orderBy('timestamp', descending: true)

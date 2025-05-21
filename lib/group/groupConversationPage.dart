@@ -1,3 +1,4 @@
+// GroupConversationPage.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,36 +19,46 @@ class _GroupConversationPageState extends State<GroupConversationPage> {
 
   final TextEditingController _messageController = TextEditingController();
 
-  Future<void> _sendMessage(String projectId, String message) async {
-    String currentUserId = _auth.currentUser!.uid;
-    DocumentSnapshot currentUserDoc =
-        await _firestore.collection('users').doc(currentUserId).get();
-    String username = currentUserDoc['username'] ?? 'Unknown';
+Future<void> _sendMessage(String projectId, String message) async {
+  String currentUserId = _auth.currentUser!.uid;
+  DocumentSnapshot currentUserDoc =
+      await _firestore.collection('users').doc(currentUserId).get();
+  String username = currentUserDoc['username'] ?? 'Unknown';
 
-    // Determine the user's role (manager, client, or member)
-    String role = 'Member'; // Default role
-    DocumentSnapshot projectDoc =
-        await _firestore.collection('projects').doc(projectId).get();
-    if (projectDoc['managerId'] == currentUserId) {
-      role = 'Manager';
-    } else if (projectDoc['client'] == currentUserId) {
-      role = 'Client';
-    }
-
-    await _firestore
-        .collection('project_chats')
-        .doc(projectId)
-        .collection('messages')
-        .add({
-      'userId': currentUserId,
-      'username': username,
-      'message': message,
-      'role': role, // Store the user's role
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-
-    _messageController.clear(); // Clear the input field after sending
+  // Determine the user's role (manager, client, or member)
+  String role = 'Member'; // Default role
+  DocumentSnapshot projectDoc =
+      await _firestore.collection('projects').doc(projectId).get();
+  if (projectDoc['managerId'] == currentUserId) {
+    role = 'Manager';
+  } else if (projectDoc['client'] == currentUserId) {
+    role = 'Client';
   }
+
+  // Add the message to Firestore
+  await _firestore
+      .collection('project_conversation') // Updated collection name
+      .doc(projectId)
+      .collection('messages')
+      .add({
+    'userId': currentUserId,
+    'username': username,
+    'message': message,
+    'role': role, // Store the user's role
+    'timestamp': FieldValue.serverTimestamp(),
+  });
+
+  // Update the last message details in the parent document
+  await _firestore.collection('project_conversation').doc(projectId).set({
+    'lastMessage': message,
+    'lastMessageTimestamp': FieldValue.serverTimestamp(),
+    'lastSeen': {
+      currentUserId: FieldValue.serverTimestamp(), // Mark as read for the sender
+    },
+  }, SetOptions(merge: true));
+
+  _messageController.clear(); // Clear the input field after sending
+}
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +81,7 @@ class _GroupConversationPageState extends State<GroupConversationPage> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
-                  .collection('project_chats')
+                  .collection('project_conversation') // Updated collection name
                   .doc(widget.projectId)
                   .collection('messages')
                   .orderBy('timestamp', descending: true)

@@ -29,7 +29,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
     String currentUserId = _auth.currentUser!.uid;
 
     try {
-      // Fetch project details to get managerId, clientId, and members
       DocumentSnapshot projectDoc =
           await _firestore.collection('projects').doc(projectId).get();
       if (!projectDoc.exists) return [];
@@ -37,7 +36,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
       String managerId = projectDoc['managerId'];
       String clientId = projectDoc['client'] ?? '';
 
-      // Add the manager
       if (managerId != currentUserId) {
         DocumentSnapshot managerDoc =
             await _firestore.collection('users').doc(managerId).get();
@@ -49,7 +47,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
         }
       }
 
-      // Add the client
       if (clientId.isNotEmpty && clientId != currentUserId) {
         DocumentSnapshot clientDoc =
             await _firestore.collection('users').doc(clientId).get();
@@ -61,11 +58,10 @@ class _GroupUIPageState extends State<GroupUIPage> {
         }
       }
 
-      // Add the members
       for (String memberId in memberIds) {
         if (memberId == currentUserId ||
             memberId == managerId ||
-            memberId == clientId) continue; // Skip duplicates
+            memberId == clientId) continue;
         DocumentSnapshot userDoc =
             await _firestore.collection('users').doc(memberId).get();
         if (userDoc.exists) {
@@ -80,21 +76,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
     }
 
     return members;
-  }
-
-  String _getConversationId(String otherUserId) {
-    String currentUserId = _auth.currentUser!.uid;
-    List<String> ids = [currentUserId, otherUserId];
-    ids.sort(); // Sort alphabetically to avoid duplicates
-    return ids.join('_');
-  }
-
-  Future<void> _toggleProjectStatus(
-      String projectId, String currentStatus) async {
-    String newStatus = currentStatus == 'Ongoing' ? 'Finished' : 'Ongoing';
-    await _firestore.collection('projects').doc(projectId).update({
-      'status': newStatus,
-    });
   }
 
   @override
@@ -134,8 +115,7 @@ class _GroupUIPageState extends State<GroupUIPage> {
             itemBuilder: (context, index) {
               var project = snapshot.data!.docs[index];
               bool isProjectManager = project['managerId'] == currentUser.uid;
-              String projectStatus =
-                  project['status'] ?? 'Ongoing'; // Default status
+              String projectStatus = project['status'] ?? 'Ongoing';
 
               return FutureBuilder<String>(
                 future: _getManagerName(project['managerId']),
@@ -183,22 +163,100 @@ class _GroupUIPageState extends State<GroupUIPage> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Conversation Icon
-                              IconButton(
-                                icon: Icon(Icons.forum),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          GroupConversationPage(
-                                        projectId: project.id,
+                              StreamBuilder<DocumentSnapshot>(
+                                stream: _firestore
+                                    .collection('project_conversation')
+                                    .doc(project.id)
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData ||
+                                      !snapshot.data!.exists) {
+                                    return IconButton(
+                                      icon: Icon(Icons.forum),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                GroupConversationPage(
+                                              projectId: project.id,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  }
+
+                                  Map<String, dynamic>? data = snapshot.data
+                                      ?.data() as Map<String, dynamic>?;
+                                  String currentUserId = _auth.currentUser!.uid;
+                                  Timestamp lastMessageTimestamp =
+                                      data?['lastMessageTimestamp']
+                                              as Timestamp? ??
+                                          Timestamp(0, 0);
+                                  Timestamp lastSeenTimestamp = (data?[
+                                                  'lastSeen']
+                                              as Map<String, dynamic>? ??
+                                          {})[currentUserId] as Timestamp? ??
+                                      Timestamp(0, 0);
+
+                                  bool hasUnreadMessages = lastMessageTimestamp
+                                          .compareTo(lastSeenTimestamp) >
+                                      0;
+
+                                  return Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.forum),
+                                        onPressed: () async {
+                                          await _firestore
+                                              .collection(
+                                                  'project_conversation')
+                                              .doc(project.id)
+                                              .update({
+                                            'lastSeen.$currentUserId':
+                                                FieldValue.serverTimestamp(),
+                                          });
+
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  GroupConversationPage(
+                                                projectId: project.id,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       ),
-                                    ),
+                                      if (hasUnreadMessages)
+                                        Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: EdgeInsets.all(2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            constraints: BoxConstraints(
+                                                minWidth: 12, minHeight: 12),
+                                            child: Text(
+                                              '!',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 8,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   );
                                 },
                               ),
-                              // Group Icon (Members List)
                               IconButton(
                                 icon: Icon(Icons.group),
                                 onPressed: () async {
@@ -226,9 +284,7 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                                           builder: (context) =>
                                                               ConversationScreen(
                                                             conversationId:
-                                                                _getConversationId(
-                                                                    member[
-                                                                        'id']!),
+                                                                project.id,
                                                             otherUserId:
                                                                 member['id']!,
                                                           ),
@@ -250,7 +306,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                   );
                                 },
                               ),
-                              // Task Icon (Only for Managers)
                               IconButton(
                                 icon: Icon(
                                   Icons.task,
@@ -260,9 +315,15 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                 ),
                                 onPressed: isProjectManager
                                     ? () async {
-                                        await _toggleProjectStatus(
-                                            project.id, projectStatus);
-                                        setState(() {}); // Refresh UI
+                                        await _firestore
+                                            .collection('projects')
+                                            .doc(project.id)
+                                            .update({
+                                          'status': projectStatus == 'Ongoing'
+                                              ? 'Finished'
+                                              : 'Ongoing',
+                                        });
+                                        setState(() {});
                                       }
                                     : null,
                               ),
