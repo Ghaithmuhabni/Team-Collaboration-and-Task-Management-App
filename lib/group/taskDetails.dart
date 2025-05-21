@@ -61,7 +61,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
             ),
             SizedBox(height: 8),
             Text(
-              'Due Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(widget.taskData['dueDate']))}',
+              'Due Date: / ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(widget.taskData['dueDate']))}',
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 8),
@@ -140,7 +140,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
                         return ListTile(
                           title: Text(comment['text']),
                           subtitle: Text(
-                            '$username - ${timestamp != null ? DateFormat('yyyy-MM-dd HH:mm').format(timestamp.toDate()) : "Pending..."}',
+                            '$username${timestamp != null ? DateFormat('\t- yyyy-MM-dd -\t HH:mm').format(timestamp.toDate()) : "Pending..."}',
                             style: TextStyle(fontSize: 12, color: Colors.grey),
                           ),
                         );

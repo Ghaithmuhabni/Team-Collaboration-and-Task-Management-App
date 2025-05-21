@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 
 class GroupConversationPage extends StatefulWidget {
   final String projectId;
@@ -60,7 +60,8 @@ class _GroupConversationPageState extends State<GroupConversationPage> {
               return Text('Loading...');
             }
             String projectName = snapshot.data!['title'] ?? 'Project';
-            return Text(projectName); // Display the project name in the AppBar
+            return Text(
+                "$projectName conversation"); // Display the project name in the AppBar
           },
         ),
       ),
