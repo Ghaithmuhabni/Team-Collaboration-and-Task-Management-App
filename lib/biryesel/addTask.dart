@@ -1,3 +1,4 @@
+// addTask.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,6 +18,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
@@ -26,8 +28,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (widget.task != null) {
       _titleController.text = widget.task!['title'];
       _descriptionController.text = widget.task!['description'];
-      _selectedDate = widget.task!['date'].toDate();
-      _selectedTime = TimeOfDay.fromDateTime(widget.task!['date'].toDate());
+      _selectedDate = (widget.task!['date'] as Timestamp).toDate();
+      _selectedTime = TimeOfDay.fromDateTime(
+        DateFormat('HH:mm').parse(widget.task!['time']),
+      );
     }
   }
 
@@ -35,7 +39,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (_titleController.text.isEmpty ||
         _selectedDate == null ||
         _selectedTime == null) {
-      // Show error if fields are empty
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill in all fields')),
+      );
       return;
     }
 
@@ -43,23 +49,25 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (currentUser == null) return;
 
     if (widget.task == null) {
+      // Add new task
       await _firestore.collection('personal_tasks').add({
         'title': _titleController.text,
         'description': _descriptionController.text,
-        'date': _selectedDate,
-        'time': _selectedTime?.format(context),
+        'date': Timestamp.fromDate(_selectedDate!),
+        'time': _selectedTime!.format(context),
         'completed': false,
         'uid': currentUser.uid,
       });
     } else {
+      // Update existing task
       await _firestore
           .collection('personal_tasks')
           .doc(widget.task!.id)
           .update({
         'title': _titleController.text,
         'description': _descriptionController.text,
-        'date': _selectedDate,
-        'time': _selectedTime?.format(context),
+        'date': Timestamp.fromDate(_selectedDate!),
+        'time': _selectedTime!.format(context),
       });
     }
 
@@ -74,63 +82,115 @@ class _AddTaskPageState extends State<AddTaskPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(labelText: 'Title'),
-            ),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(labelText: 'Description'),
-            ),
-            TextFormField(
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Date',
-                hintText: _selectedDate != null
-                    ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
-                    : 'Select Date',
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title Field
+              TextField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
               ),
-              onTap: () async {
-                DateTime? pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate ?? DateTime.now(),
-                  firstDate: DateTime.now(), // Prevent selecting past dates
-                  lastDate: DateTime(2100),
-                );
-                if (pickedDate != null) {
-                  setState(() {
-                    _selectedDate = pickedDate;
-                  });
-                }
-              },
-            ),
-            TextFormField(
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Time',
-                hintText: _selectedTime != null
-                    ? _selectedTime!.format(context)
-                    : 'Select Time',
+              SizedBox(height: 16),
+
+              // Description Field
+              TextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
               ),
-              onTap: () async {
-                TimeOfDay? pickedTime = await showTimePicker(
-                  context: context,
-                  initialTime: _selectedTime ?? TimeOfDay.now(),
-                );
-                if (pickedTime != null) {
-                  setState(() {
-                    _selectedTime = pickedTime;
-                  });
-                }
-              },
-            ),
-            ElevatedButton(
-              onPressed: _addOrUpdateTask,
-              child: Text(widget.task == null ? 'Add Task' : 'Update Task'),
-            ),
-          ],
+              SizedBox(height: 16),
+
+              // Date Picker
+              InkWell(
+                onTap: () async {
+                  DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate ?? DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                  );
+                  if (pickedDate != null) {
+                    setState(() {
+                      _selectedDate = pickedDate;
+                    });
+                  }
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Date',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _selectedDate != null
+                            ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+                            : 'Select Date',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      Icon(Icons.calendar_today),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+
+              // Time Picker
+              InkWell(
+                onTap: () async {
+                  TimeOfDay? pickedTime = await showTimePicker(
+                    context: context,
+                    initialTime: _selectedTime ?? TimeOfDay.now(),
+                  );
+                  if (pickedTime != null) {
+                    setState(() {
+                      _selectedTime = pickedTime;
+                    });
+                  }
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Time',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _selectedTime != null
+                            ? _selectedTime!.format(context)
+                            : 'Select Time',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      Icon(Icons.access_time),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+
+              // Submit Button
+              ElevatedButton(
+                onPressed: _addOrUpdateTask,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  minimumSize: Size(double.infinity, 50),
+                ),
+                child: Text(
+                  widget.task == null ? 'Add Task' : 'Update Task',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
