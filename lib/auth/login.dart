@@ -171,8 +171,8 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 icon: Image.asset(
                   'images/google_logo.png', // Replace with your Google logo
-                  width: 24,
-                  height: 24,
+                  width: 30,
+                  height: 30,
                 ),
                 label: Text(
                   'Sign in with Google',
@@ -193,7 +193,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Text(
                 'Don\'t have an account? Sign up here.',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 15,
                   color: Colors.blue,
                 ),
               ),
