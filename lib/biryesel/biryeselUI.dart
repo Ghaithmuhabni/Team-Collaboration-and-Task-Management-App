@@ -18,6 +18,7 @@ class _PersonalUsePageState extends State<PersonalUsePage>
 
   late AnimationController _animationController;
   late Animation<double> _strikethroughAnimation;
+  late Animation<double> _checkboxScaleAnimation;
 
   @override
   void initState() {
@@ -26,11 +27,16 @@ class _PersonalUsePageState extends State<PersonalUsePage>
     // Initialize animation controller
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 300),
+      duration: Duration(milliseconds: 300), // Adjust the duration here
     );
 
     // Define strikethrough animation
     _strikethroughAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    // Define checkbox scale animation
+    _checkboxScaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
   }
@@ -42,7 +48,7 @@ class _PersonalUsePageState extends State<PersonalUsePage>
   void _showEditDeleteDialog(DocumentSnapshot task) {
     AwesomeDialog(
       context: context,
-      dialogType: DialogType.info,
+      dialogType: DialogType.question,
       animType: AnimType.scale,
       title: 'Edit or Delete Task',
       desc: 'Would you like to edit or delete this task?',
@@ -143,6 +149,27 @@ class _PersonalUsePageState extends State<PersonalUsePage>
     return description;
   }
 
+  Widget _buildAnimatedText(String text, TextStyle style, bool isCompleted) {
+    return AnimatedBuilder(
+      animation: _strikethroughAnimation,
+      builder: (context, child) {
+        double opacity = isCompleted ? _strikethroughAnimation.value : 1.0;
+        TextDecoration decoration =
+            isCompleted && _strikethroughAnimation.isCompleted
+                ? TextDecoration.lineThrough
+                : TextDecoration.none;
+
+        return Opacity(
+          opacity: opacity,
+          child: Text(
+            text,
+            style: style.copyWith(decoration: decoration),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     User? currentUser = _auth.currentUser;
@@ -197,7 +224,7 @@ class _PersonalUsePageState extends State<PersonalUsePage>
               bool isCompleted = task['completed'] ?? false;
 
               return AnimatedBuilder(
-                animation: _strikethroughAnimation,
+                animation: _animationController,
                 builder: (context, child) {
                   return Card(
                     margin: EdgeInsets.all(10),
@@ -208,7 +235,6 @@ class _PersonalUsePageState extends State<PersonalUsePage>
                     color: isCompleted ? Colors.blue[50] : Colors.white,
                     child: InkWell(
                       onTap: () {
-                        // Open the bottom sheet when the card is tapped
                         _showTaskDetailsBottomSheet(task);
                       },
                       child: Padding(
@@ -216,37 +242,41 @@ class _PersonalUsePageState extends State<PersonalUsePage>
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Custom Checkbox
-                            GestureDetector(
-                              onTap: () async {
-                                if (!isCompleted) {
-                                  _animationController.forward();
-                                } else {
-                                  _animationController.reverse();
-                                }
-                                await _firestore
-                                    .collection('personal_tasks')
-                                    .doc(task.id)
-                                    .update({'completed': !isCompleted});
-                              },
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: isCompleted
-                                      ? Colors.blue
-                                      : Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color:
-                                        isCompleted ? Colors.blue : Colors.grey,
-                                    width: 2,
+                            // Custom Checkbox with Animation
+                            ScaleTransition(
+                              scale: _checkboxScaleAnimation,
+                              child: GestureDetector(
+                                onTap: () async {
+                                  if (!isCompleted) {
+                                    _animationController.forward();
+                                  } else {
+                                    _animationController.reverse();
+                                  }
+                                  await _firestore
+                                      .collection('personal_tasks')
+                                      .doc(task.id)
+                                      .update({'completed': !isCompleted});
+                                },
+                                child: Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: isCompleted
+                                        ? Colors.blue
+                                        : Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isCompleted
+                                          ? Colors.blue
+                                          : Colors.grey,
+                                      width: 2,
+                                    ),
                                   ),
+                                  child: isCompleted
+                                      ? Icon(Icons.check,
+                                          size: 16, color: Colors.white)
+                                      : null,
                                 ),
-                                child: isCompleted
-                                    ? Icon(Icons.check,
-                                        size: 16, color: Colors.white)
-                                    : null,
                               ),
                             ),
                             SizedBox(width: 12),
@@ -256,36 +286,32 @@ class _PersonalUsePageState extends State<PersonalUsePage>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Title
-                                  Text(
+                                  // Title with Animated Strikethrough
+                                  _buildAnimatedText(
                                     task['title'],
-                                    style: TextStyle(
+                                    TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      decoration: isCompleted
-                                          ? TextDecoration.lineThrough
-                                          : TextDecoration.none,
                                       color: isCompleted
                                           ? Colors.grey
                                           : Colors.black,
                                     ),
+                                    isCompleted,
                                   ),
                                   SizedBox(height: 4),
 
-                                  // Description (Truncated)
-                                  Text(
+                                  // Description (Truncated) with Animated Strikethrough
+                                  _buildAnimatedText(
                                     _truncateDescription(
                                         task['description'] ?? 'No description',
                                         20),
-                                    style: TextStyle(
+                                    TextStyle(
                                       fontSize: 14,
-                                      decoration: isCompleted
-                                          ? TextDecoration.lineThrough
-                                          : TextDecoration.none,
                                       color: isCompleted
                                           ? Colors.grey
                                           : Colors.black54,
                                     ),
+                                    isCompleted,
                                   ),
                                   SizedBox(height: 4),
 
