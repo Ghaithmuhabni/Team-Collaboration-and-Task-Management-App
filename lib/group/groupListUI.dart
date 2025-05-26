@@ -27,15 +27,12 @@ class _GroupUIPageState extends State<GroupUIPage> {
       List<dynamic> memberIds, String projectId) async {
     List<Map<String, String>> members = [];
     String currentUserId = _auth.currentUser!.uid;
-
     try {
       DocumentSnapshot projectDoc =
           await _firestore.collection('projects').doc(projectId).get();
       if (!projectDoc.exists) return [];
-
       String managerId = projectDoc['managerId'];
       String clientId = projectDoc['client'] ?? '';
-
       if (managerId != currentUserId) {
         DocumentSnapshot managerDoc =
             await _firestore.collection('users').doc(managerId).get();
@@ -46,7 +43,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
           });
         }
       }
-
       if (clientId.isNotEmpty && clientId != currentUserId) {
         DocumentSnapshot clientDoc =
             await _firestore.collection('users').doc(clientId).get();
@@ -57,7 +53,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
           });
         }
       }
-
       for (String memberId in memberIds) {
         if (memberId == currentUserId ||
             memberId == managerId ||
@@ -74,7 +69,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
     } catch (e) {
       print("Error fetching project members: $e");
     }
-
     return members;
   }
 
@@ -85,7 +79,11 @@ class _GroupUIPageState extends State<GroupUIPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Projects', style: TextStyle(fontSize: 18)),
+        title: Text(
+          'Projects',
+          style: TextStyle(fontSize: 18, color: Colors.white),
+        ),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
       ),
       drawer: AppDrawer(),
       body: StreamBuilder<QuerySnapshot>(
@@ -97,19 +95,25 @@ class _GroupUIPageState extends State<GroupUIPage> {
             ))
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
-
+          }
           if (snapshot.data!.docs.isEmpty) {
             return Center(
-              child: Text(
-                'You are not part of any projects yet.\nPress + to create a new project.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.task_alt, size: 50, color: Colors.grey),
+                  SizedBox(height: 10),
+                  Text(
+                    'You are not part of any projects yet.\nPress + to create a new project.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             );
           }
-
           return ListView.builder(
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
@@ -120,41 +124,51 @@ class _GroupUIPageState extends State<GroupUIPage> {
               return FutureBuilder<String>(
                 future: _getManagerName(project['managerId']),
                 builder: (context, managerSnapshot) {
-                  if (!managerSnapshot.hasData)
+                  if (!managerSnapshot.hasData) {
                     return CircularProgressIndicator();
-
+                  }
                   return FutureBuilder<List<Map<String, String>>>(
                     future:
                         _fetchProjectMembers(project['members'], project.id),
                     builder: (context, membersSnapshot) {
-                      if (!membersSnapshot.hasData)
+                      if (!membersSnapshot.hasData) {
                         return CircularProgressIndicator();
-
+                      }
                       return Card(
                         margin: EdgeInsets.all(10),
-                        elevation: 3,
+                        elevation: 4,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        color: Colors.blue[50], // Light blue card background
                         child: ListTile(
                           title: Text(
                             project['title'],
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[800], // Dark blue text
+                            ),
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(project['description']),
+                              Text(
+                                project['description'],
+                                style: TextStyle(color: Colors.black54),
+                              ),
                               Text(
                                 'Manager: ${managerSnapshot.data}',
-                                style: TextStyle(fontStyle: FontStyle.italic),
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.blue[700], // Blue text
+                                ),
                               ),
                               Text(
                                 'Status: $projectStatus',
                                 style: TextStyle(
                                   color: projectStatus == 'Finished'
                                       ? Colors.green
-                                      : Colors.black,
+                                      : Colors.blue[900], // Blue text
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -172,7 +186,8 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                   if (!snapshot.hasData ||
                                       !snapshot.data!.exists) {
                                     return IconButton(
-                                      icon: Icon(Icons.forum),
+                                      icon: Icon(Icons.forum,
+                                          color: Colors.blue[800]),
                                       onPressed: () {
                                         Navigator.push(
                                           context,
@@ -186,7 +201,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                       },
                                     );
                                   }
-
                                   Map<String, dynamic>? data = snapshot.data
                                       ?.data() as Map<String, dynamic>?;
                                   String currentUserId = _auth.currentUser!.uid;
@@ -199,16 +213,15 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                               as Map<String, dynamic>? ??
                                           {})[currentUserId] as Timestamp? ??
                                       Timestamp(0, 0);
-
                                   bool hasUnreadMessages = lastMessageTimestamp
                                           .compareTo(lastSeenTimestamp) >
                                       0;
-
                                   return Stack(
                                     alignment: Alignment.center,
                                     children: [
                                       IconButton(
-                                        icon: Icon(Icons.forum),
+                                        icon: Icon(Icons.forum,
+                                            color: Colors.blue[800]),
                                         onPressed: () async {
                                           await _firestore
                                               .collection(
@@ -218,7 +231,6 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                             'lastSeen.$currentUserId':
                                                 FieldValue.serverTimestamp(),
                                           });
-
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
@@ -258,7 +270,8 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                 },
                               ),
                               IconButton(
-                                icon: Icon(Icons.group),
+                                icon:
+                                    Icon(Icons.group, color: Colors.blue[800]),
                                 onPressed: () async {
                                   List<Map<String, String>> members =
                                       await _fetchProjectMembers(
@@ -311,7 +324,7 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                   Icons.task,
                                   color: projectStatus == 'Finished'
                                       ? Colors.green
-                                      : Colors.red,
+                                      : Colors.blue[800],
                                 ),
                                 onPressed: isProjectManager
                                     ? () async {
@@ -357,7 +370,8 @@ class _GroupUIPageState extends State<GroupUIPage> {
             MaterialPageRoute(builder: (context) => AddProjectPage()),
           );
         },
-        child: Icon(Icons.add),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
+        child: Icon(Icons.add, color: Colors.white), // White "+" icon
       ),
     );
   }
