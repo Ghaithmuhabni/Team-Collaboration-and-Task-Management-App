@@ -35,21 +35,25 @@ class AppDrawer extends StatelessWidget {
         }
 
         return Drawer(
+          elevation: 16,
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
+              // Drawer Header
               DrawerHeader(
                 decoration: BoxDecoration(
-                  color: Colors.blue,
+                  color: Colors.blue[800],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       'Welcome, $displayName',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     SizedBox(height: 8),
@@ -63,47 +67,131 @@ class AppDrawer extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // Menu Items
               ListTile(
-                leading: Icon(Icons.person),
-                title: Text('Profile'),
-                onTap: () {
+                leading: Icon(Icons.person, color: Colors.blue[800]),
+                title: Text(
+                  'Profile',
+                  style: TextStyle(color: Colors.blue[800]),
+                ),
+                onTap: () async {
                   Navigator.pop(context);
+                  await Future.delayed(
+                      Duration(milliseconds: 300)); // Animation delay
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => ProfilePage()),
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          ProfilePage(),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(0.0, 1.0);
+                        const end = Offset.zero;
+                        final tween = Tween<Offset>(begin: begin, end: end);
+                        final offsetAnimation = animation.drive(tween);
+
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                    ),
                   );
                 },
               ),
               ListTile(
-                leading: Icon(Icons.task),
-                title: Text('Personal Use'),
-                onTap: () {
+                leading: Icon(Icons.task, color: Colors.blue[800]),
+                title: Text(
+                  'Personal Use',
+                  style: TextStyle(color: Colors.blue[800]),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Future.delayed(
+                      Duration(milliseconds: 300)); // Animation delay
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (context) => PersonalUsePage()),
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          PersonalUsePage(),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(0.0, 1.0);
+                        const end = Offset.zero;
+                        final tween = Tween<Offset>(begin: begin, end: end);
+                        final offsetAnimation = animation.drive(tween);
+
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                    ),
                     (route) => false,
                   );
                 },
               ),
               ListTile(
-                leading: Icon(Icons.group),
-                title: Text('Group Use'),
-                onTap: () {
+                leading: Icon(Icons.group, color: Colors.blue[800]),
+                title: Text(
+                  'Group Use',
+                  style: TextStyle(color: Colors.blue[800]),
+                ),
+                onTap: () async {
                   Navigator.pop(context);
+                  await Future.delayed(
+                      Duration(milliseconds: 300)); // Animation delay
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => GroupUIPage()),
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          GroupUIPage(),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(0.0, 1.0);
+                        const end = Offset.zero;
+                        final tween = Tween<Offset>(begin: begin, end: end);
+                        final offsetAnimation = animation.drive(tween);
+
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                    ),
                   );
                 },
               ),
               ListTile(
-                leading: Icon(Icons.logout),
-                title: Text('Logout'),
+                leading: Icon(Icons.logout, color: Colors.red),
+                title: Text(
+                  'Logout',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () async {
+                  Navigator.pop(context);
+                  await Future.delayed(
+                      Duration(milliseconds: 300)); // Animation delay
                   await _auth.signOut();
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (context) => LoginPage()),
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          LoginPage(),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(0.0, 1.0);
+                        const end = Offset.zero;
+                        final tween = Tween<Offset>(begin: begin, end: end);
+                        final offsetAnimation = animation.drive(tween);
+
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                    ),
                     (route) => false,
                   );
                 },
