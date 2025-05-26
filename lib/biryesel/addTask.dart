@@ -78,7 +78,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.task == null ? 'Add Task' : 'Update Task'),
+        title: Text(
+          widget.task == null ? 'Add Task' : 'Update Task',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color.fromARGB(
+            255, 4, 135, 241), // Match app bar color with theme
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -91,7 +96,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 controller: _titleController,
                 decoration: InputDecoration(
                   labelText: 'Title',
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: Colors.black),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               SizedBox(height: 16),
@@ -102,7 +115,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 maxLines: 3,
                 decoration: InputDecoration(
                   labelText: 'Description',
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: Colors.black),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               SizedBox(height: 16),
@@ -115,6 +136,24 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     initialDate: _selectedDate ?? DateTime.now(),
                     firstDate: DateTime.now(),
                     lastDate: DateTime(2100),
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.light().copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: Colors.blue[800]!, // Header color
+                            onPrimary: Colors.white, // Header text color
+                            surface: Colors.blue[400]!, // Selected date color
+                            onSurface: Colors.black, // Unselected date color
+                          ),
+                          dialogBackgroundColor: Colors.blue[50], // Background
+                          textTheme: TextTheme(
+                            bodyLarge: TextStyle(color: Colors.black),
+                            bodyMedium: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
                   );
                   if (pickedDate != null) {
                     setState(() {
@@ -125,7 +164,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     labelText: 'Date',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: Colors.black),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -136,7 +183,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                             : 'Select Date',
                         style: TextStyle(fontSize: 16),
                       ),
-                      Icon(Icons.calendar_today),
+                      Icon(Icons.calendar_today, color: Colors.blue),
                     ],
                   ),
                 ),
@@ -149,6 +196,24 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   TimeOfDay? pickedTime = await showTimePicker(
                     context: context,
                     initialTime: _selectedTime ?? TimeOfDay.now(),
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.light().copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: Colors.blue[800]!, // Header color
+                            onPrimary: Colors.white, // Header text color
+                            surface: Colors.blue[400]!, // Selected time color
+                            onSurface: Colors.black, // Unselected time color
+                          ),
+                          dialogBackgroundColor: Colors.blue[50], // Background
+                          textTheme: TextTheme(
+                            bodyLarge: TextStyle(color: Colors.black),
+                            bodyMedium: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
                   );
                   if (pickedTime != null) {
                     setState(() {
@@ -159,7 +224,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     labelText: 'Time',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: Colors.black),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -170,7 +243,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                             : 'Select Time',
                         style: TextStyle(fontSize: 16),
                       ),
-                      Icon(Icons.access_time),
+                      Icon(Icons.access_time, color: Colors.blue),
                     ],
                   ),
                 ),
@@ -183,6 +256,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   minimumSize: Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Text(
                   widget.task == null ? 'Add Task' : 'Update Task',

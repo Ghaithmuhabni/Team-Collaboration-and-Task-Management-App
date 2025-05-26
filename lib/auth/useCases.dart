@@ -76,6 +76,7 @@ class _UseCasesPageState extends State<UseCasesPage> {
             },
           ),
         ],
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241),
       ),
       drawer: AppDrawer(),
       body: Padding(
