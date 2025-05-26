@@ -95,7 +95,10 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
         _dueDate == null ||
         _dueTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill all required fields.')),
+        SnackBar(
+          content: Text('Please fill all required fields.'),
+          backgroundColor: const Color.fromARGB(255, 4, 135, 241),
+        ),
       );
       return;
     }
@@ -132,125 +135,296 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add Task'),
+        title: Text(
+          'Add Task',
+          style: TextStyle(fontSize: 18, color: Colors.white),
+        ),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _taskTitleController,
-              decoration: InputDecoration(labelText: 'Task Title'),
-            ),
-            TextField(
-              controller: _taskDescriptionController,
-              decoration: InputDecoration(labelText: 'Task Description'),
-            ),
-            TextField(
-              controller: _assignedToController,
-              readOnly: true,
-              decoration: InputDecoration(
-                  labelText: 'Assigned To', hintText: 'Select a team member'),
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) => ListView(
-                    children: _teamMembers.map((member) {
-                      return ListTile(
-                        title: Text(member['name']!),
-                        onTap: () {
+            Card(
+              margin: EdgeInsets.symmetric(vertical: 8),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: Colors.blue[50],
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _taskTitleController,
+                      decoration: InputDecoration(
+                        labelText: 'Task Title',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextField(
+                      controller: _taskDescriptionController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Task Description',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    InkWell(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          builder: (context) => ListView(
+                            children: _teamMembers.map((member) {
+                              return ListTile(
+                                title: Text(member['name']!),
+                                onTap: () {
+                                  setState(() {
+                                    _assignedToController.text =
+                                        member['name']!;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        );
+                      },
+                      child: IgnorePointer(
+                        child: TextField(
+                          controller: _assignedToController,
+                          decoration: InputDecoration(
+                            labelText: 'Assigned To',
+                            hintText: 'Select a team member',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (pickedDate != null) {
                           setState(() {
-                            _assignedToController.text = member['name']!;
+                            _dueDate = pickedDate;
+                            _dueDateController.text =
+                                DateFormat('yyyy-MM-dd').format(pickedDate);
                           });
-                          Navigator.pop(context);
-                        },
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-            TextFormField(
-              controller: _dueDateController,
-              readOnly: true,
-              decoration: InputDecoration(
-                  labelText: 'Due Date', hintText: 'Select Date'),
-              onTap: () async {
-                DateTime? pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime(2100),
-                );
-                if (pickedDate != null) {
-                  setState(() {
-                    _dueDate = pickedDate;
-                    _dueDateController.text =
-                        DateFormat('yyyy-MM-dd').format(pickedDate);
-                  });
-                }
-              },
-            ),
-            TextFormField(
-              controller: _dueTimeController,
-              readOnly: true,
-              decoration: InputDecoration(
-                  labelText: 'Due Time', hintText: 'Select Time'),
-              onTap: () async {
-                TimeOfDay? pickedTime = await showTimePicker(
-                  context: context,
-                  initialTime: TimeOfDay.now(),
-                );
-                if (pickedTime != null) {
-                  setState(() {
-                    _dueTime = pickedTime;
-                    _dueTimeController.text = pickedTime.format(context);
-                  });
-                }
-              },
-            ),
-            DropdownButton<String>(
-              value: _priority,
-              items: ['Low', 'Normal', 'High'].map((priority) {
-                return DropdownMenuItem(
-                  value: priority,
-                  child: Text(priority),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _priority = value;
-                  });
-                }
-              },
-            ),
-            SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _pickFile,
-                    child:
-                        Text(_file == null ? 'Upload File' : 'File Selected'),
-                  ),
+                        }
+                      },
+                      child: IgnorePointer(
+                        child: TextField(
+                          controller: _dueDateController,
+                          decoration: InputDecoration(
+                            labelText: 'Due Date',
+                            hintText: 'Select Date',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        TimeOfDay? pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (pickedTime != null) {
+                          setState(() {
+                            _dueTime = pickedTime;
+                            _dueTimeController.text =
+                                pickedTime.format(context);
+                          });
+                        }
+                      },
+                      child: IgnorePointer(
+                        child: TextField(
+                          controller: _dueTimeController,
+                          decoration: InputDecoration(
+                            labelText: 'Due Time',
+                            hintText: 'Select Time',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: const Color.fromARGB(255, 4, 135, 241),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _priority,
+                      decoration: InputDecoration(
+                        labelText: 'Priority',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color.fromARGB(255, 4, 135, 241),
+                          ),
+                        ),
+                      ),
+                      items: ['Low', 'Normal', 'High'].map((priority) {
+                        return DropdownMenuItem(
+                          value: priority,
+                          child: Text(priority),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _priority = value;
+                          });
+                        }
+                      },
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _pickFile,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color.fromARGB(255, 4, 135, 241),
+                            ),
+                            child: Text(
+                              _file == null ? 'Upload File' : 'File Selected',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        if (_file != null)
+                          IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                _file = null;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _createTask,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 4, 135, 241),
+                      ),
+                      child: Text(
+                        'Create Task',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 10),
-                if (_file != null)
-                  IconButton(
-                    icon: Icon(Icons.delete),
-                    onPressed: () {
-                      setState(() {
-                        _file = null;
-                      });
-                    },
-                  ),
-              ],
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _createTask,
-              child: Text('Create Task'),
+              ),
             ),
           ],
         ),
