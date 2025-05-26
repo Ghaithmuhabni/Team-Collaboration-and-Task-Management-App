@@ -26,131 +26,254 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
       final downloadUrl = await ref.getDownloadURL();
       print("Download URL: $downloadUrl");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('File downloaded successfully!')),
+        SnackBar(
+          content: Text('File downloaded successfully!'),
+          backgroundColor: const Color.fromARGB(255, 4, 135, 241),
+        ),
       );
     } catch (e) {
       print("Error downloading file: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to download file.')),
+        SnackBar(
+          content: Text('Failed to download file.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // String? assignedTo = widget.taskData['assignedTo'];
     String? fileUrl = widget.taskData['fileUrl'];
+    String? assignedTo = widget.taskData['assignedTo'];
+    String? priority = widget.taskData['priority'];
+    DateTime dueDate = DateTime.parse(widget.taskData['dueDate']);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Task Details'),
+        title: Text(
+          'Task Details',
+          style: TextStyle(fontSize: 18, color: Colors.white),
+        ),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Title: ${widget.taskData['title']}',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Card(
+              margin: EdgeInsets.symmetric(vertical: 8),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: Colors.blue[50],
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Title: ${widget.taskData['title']}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[800],
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Description: ${widget.taskData['description'] ?? 'No description'}',
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today,
+                            size: 16, color: Colors.blue),
+                        SizedBox(width: 4),
+                        Text(
+                          'Due Date: ${DateFormat('yyyy-MM-dd / HH:mm').format(dueDate)}',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.person, size: 16, color: Colors.blue),
+                        SizedBox(width: 4),
+                        Text(
+                          'Assigned To: ${assignedTo ?? 'Unassigned'}',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.flag, size: 16, color: Colors.blue),
+                        SizedBox(width: 4),
+                        Text(
+                          'Priority: ${priority ?? 'Normal'}',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'Description: ${widget.taskData['description'] ?? 'No description'}',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Due Date: / ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(widget.taskData['dueDate']))}',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Assigned To: ${widget.taskData['assignedTo'] ?? 'Unassigned'}',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Priority: ${widget.taskData['priority'] ?? 'Normal'}',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 16),
             if (fileUrl != null && fileUrl.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Attached File:',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Row(
+              Card(
+                margin: EdgeInsets.symmetric(vertical: 8),
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.attach_file),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          fileUrl.split('/').last,
-                          style: TextStyle(fontSize: 16),
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        'Attached File:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[800],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _downloadFile(fileUrl),
-                        child: Text('Download'),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.attach_file, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              fileUrl.split('/').last,
+                              style: TextStyle(fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => _downloadFile(fileUrl),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color.fromARGB(255, 4, 135, 241),
+                            ),
+                            child: Text('Download'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               )
             else
-              Text('No file attached.'),
-            SizedBox(height: 16),
-            Text(
-              'Comments:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Card(
+                margin: EdgeInsets.symmetric(vertical: 8),
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                    'No file attached.',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ),
+              ),
+            Card(
+              margin: EdgeInsets.symmetric(vertical: 8),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: Colors.blue[50],
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Comments:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[800],
+                      ),
+                    ),
+                    Divider(),
+                    SizedBox(
+                      height: 200, // Fixed height for scrollable area
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: _firestore
+                            .collection('project_tasks')
+                            .doc(widget.taskId)
+                            .collection('comments')
+                            .orderBy('timestamp', descending: true)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  const Color.fromARGB(255, 4, 135, 241),
+                                ),
+                                strokeWidth: 3,
+                              ),
+                            );
+                          }
+                          if (snapshot.data!.docs.isEmpty) {
+                            return Center(child: Text('No comments yet.'));
+                          }
+                          return ListView.builder(
+                            itemCount: snapshot.data!.docs.length,
+                            itemBuilder: (context, index) {
+                              Map<String, dynamic> comment =
+                                  snapshot.data!.docs[index].data()
+                                      as Map<String, dynamic>;
+                              String userId = comment['userId'];
+                              Timestamp? timestamp =
+                                  comment['timestamp'] as Timestamp?;
+                              return FutureBuilder<DocumentSnapshot>(
+                                future: _firestore
+                                    .collection('users')
+                                    .doc(userId)
+                                    .get(),
+                                builder: (context, userSnapshot) {
+                                  if (!userSnapshot.hasData) {
+                                    return CircularProgressIndicator();
+                                  }
+                                  String username = userSnapshot.data!.exists
+                                      ? userSnapshot.data!['username']
+                                      : 'Unknown';
+                                  return ListTile(
+                                    title: Text(comment['text']),
+                                    subtitle: Text(
+                                      '$username${timestamp != null ? DateFormat('\t- yyyy-MM-dd -\t HH:mm').format(timestamp.toDate()) : "Pending..."}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            Divider(),
-            StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('project_tasks')
-                  .doc(widget.taskId)
-                  .collection('comments')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return CircularProgressIndicator();
-                if (snapshot.data!.docs.isEmpty) {
-                  return Text('No comments yet.');
-                }
-                return Column(
-                  children: snapshot.data!.docs.map((doc) {
-                    Map<String, dynamic> comment =
-                        doc.data() as Map<String, dynamic>;
-                    String userId = comment['userId'];
-                    Timestamp? timestamp = comment['timestamp'] as Timestamp?;
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: _firestore.collection('users').doc(userId).get(),
-                      builder: (context, userSnapshot) {
-                        if (!userSnapshot.hasData)
-                          return CircularProgressIndicator();
-                        String username = userSnapshot.data!.exists
-                            ? userSnapshot.data!['username']
-                            : 'Unknown';
-                        return ListTile(
-                          title: Text(comment['text']),
-                          subtitle: Text(
-                            '$username${timestamp != null ? DateFormat('\t- yyyy-MM-dd -\t HH:mm').format(timestamp.toDate()) : "Pending..."}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        );
-                      },
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-            SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -158,11 +281,33 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
                     controller: _commentController,
                     decoration: InputDecoration(
                       labelText: 'Add a comment',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: const Color.fromARGB(
+                              255, 4, 135, 241), // Blue border
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: const Color.fromARGB(
+                              255, 4, 135, 241), // Blue border
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: const Color.fromARGB(
+                              255, 4, 135, 241), // Blue border
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.send),
+                  icon: Icon(Icons.send,
+                      color: const Color.fromARGB(255, 4, 135, 241)),
                   onPressed: () async {
                     if (_commentController.text.trim().isEmpty) return;
                     String userId = FirebaseAuth.instance.currentUser!.uid;

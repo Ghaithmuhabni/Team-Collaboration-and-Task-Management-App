@@ -1,12 +1,13 @@
 // projectUI.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_3/group/groupConversationPage.dart';
+import 'package:flutter_application_3/group/conversationScreen.dart';
 import 'package:intl/intl.dart';
 import 'addTaskProject.dart';
 import 'editTaskProject.dart';
 import 'taskDetails.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:awesome_dialog/awesome_dialog.dart'; // Import AwesomeDialog
 
 class ProjectUI extends StatefulWidget {
   final String projectId;
@@ -55,37 +56,30 @@ class _ProjectUIState extends State<ProjectUI> {
       );
       return;
     }
-    showDialog(
+
+    AwesomeDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit or Delete Task'),
-        content: Text('Would you like to edit or delete this task?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditTaskProjectPage(
-                    taskId: task.id,
-                    taskData: task.data() as Map<String, dynamic>,
-                  ),
-                ),
-              );
-            },
-            child: Text('Edit'),
+      dialogType: DialogType.question,
+      animType: AnimType.scale,
+      title: 'Edit or Delete Task',
+      desc: 'Would you like to edit or delete this task?',
+      btnOkText: 'Edit',
+      btnOkOnPress: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditTaskProjectPage(
+              taskId: task.id,
+              taskData: task.data() as Map<String, dynamic>,
+            ),
           ),
-          TextButton(
-            onPressed: () async {
-              await _deleteTask(task.id);
-              Navigator.pop(context);
-            },
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
+        );
+      },
+      btnCancelText: 'Delete',
+      btnCancelOnPress: () async {
+        await _deleteTask(task.id);
+      },
+    ).show();
   }
 
   IconData _getStatusIcon(String status) {
@@ -122,101 +116,63 @@ class _ProjectUIState extends State<ProjectUI> {
           future: _getProjectName(widget.projectId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Text('Loading...'); // Show loading while fetching the name
+              return Text('Loading...');
             }
             if (snapshot.hasError) {
-              return Text('Error'); // Handle errors gracefully
+              return Text('Error');
             }
             return Text(
-              snapshot.data ??
-                  'Unnamed Project', // Use the fetched project name
+              snapshot.data ?? 'Unnamed Project',
               style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white), // White text for better contrast
+                  color: Colors.white),
             );
           },
         ),
         backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
         actions: [
-          StreamBuilder<DocumentSnapshot>(
-            stream: _firestore
-                .collection('project_conversation')
-                .doc(widget.projectId)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData || !snapshot.data!.exists) {
-                return IconButton(
-                  icon: Icon(Icons.forum, color: Colors.white),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GroupConversationPage(
-                          projectId: widget.projectId,
-                        ),
-                      ),
-                    );
-                  },
-                );
-              }
-              Map<String, dynamic>? data =
-                  snapshot.data?.data() as Map<String, dynamic>?;
-              String currentUserId = _auth.currentUser!.uid;
-              Timestamp lastMessageTimestamp =
-                  data?['lastMessageTimestamp'] as Timestamp? ??
-                      Timestamp(0, 0);
-              Timestamp lastSeenTimestamp =
-                  (data?['lastSeen'] as Map<String, dynamic>? ??
-                          {})[currentUserId] as Timestamp? ??
-                      Timestamp(0, 0);
-              bool hasUnreadMessages =
-                  lastMessageTimestamp.compareTo(lastSeenTimestamp) > 0;
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.forum, color: Colors.white),
-                    onPressed: () async {
-                      await _firestore
-                          .collection('project_conversation')
-                          .doc(widget.projectId)
-                          .update({
-                        'lastSeen.$currentUserId': FieldValue.serverTimestamp(),
-                      });
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GroupConversationPage(
-                            projectId: widget.projectId,
+          IconButton(
+            icon: Icon(Icons.group, color: Colors.white),
+            onPressed: () async {
+              List<Map<String, String>> members =
+                  await _fetchProjectMembers([], widget.projectId);
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Project Members'),
+                  content: members.isEmpty
+                      ? Text('No members found.')
+                      : SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: members.map((member) {
+                              return ListTile(
+                                title: Text(member['username']!),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ConversationScreen(
+                                        conversationId: widget.projectId,
+                                        otherUserId: member['id']!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            }).toList(),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  if (hasUnreadMessages)
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Container(
-                        padding: EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        constraints:
-                            BoxConstraints(minWidth: 12, minHeight: 12),
-                        child: Text(
-                          '!',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Close',
+                          style: TextStyle(color: Colors.blue[800])),
                     ),
-                ],
+                  ],
+                ),
               );
             },
           ),
@@ -420,5 +376,54 @@ class _ProjectUIState extends State<ProjectUI> {
         child: Icon(Icons.add, color: Colors.white), // White "+" icon
       ),
     );
+  }
+
+  Future<List<Map<String, String>>> _fetchProjectMembers(
+      List<dynamic> memberIds, String projectId) async {
+    List<Map<String, String>> members = [];
+    String currentUserId = _auth.currentUser!.uid;
+    try {
+      DocumentSnapshot projectDoc =
+          await _firestore.collection('projects').doc(projectId).get();
+      if (!projectDoc.exists) return [];
+      String managerId = projectDoc['managerId'];
+      String clientId = projectDoc['client'] ?? '';
+      if (managerId != currentUserId) {
+        DocumentSnapshot managerDoc =
+            await _firestore.collection('users').doc(managerId).get();
+        if (managerDoc.exists) {
+          members.add({
+            'id': managerId,
+            'username': '${managerDoc['username']} (Manager)',
+          });
+        }
+      }
+      if (clientId.isNotEmpty && clientId != currentUserId) {
+        DocumentSnapshot clientDoc =
+            await _firestore.collection('users').doc(clientId).get();
+        if (clientDoc.exists) {
+          members.add({
+            'id': clientId,
+            'username': '${clientDoc['username']} (Client)',
+          });
+        }
+      }
+      for (String memberId in memberIds) {
+        if (memberId == currentUserId ||
+            memberId == managerId ||
+            memberId == clientId) continue;
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(memberId).get();
+        if (userDoc.exists) {
+          members.add({
+            'id': memberId,
+            'username': '${userDoc['username']} (Member)',
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching project members: $e");
+    }
+    return members;
   }
 }
