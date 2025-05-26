@@ -1,84 +1,50 @@
-// UseCasesPage.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_3/componants/drawer.dart';
-import 'login.dart';
-import '../biryesel/biryeselUI.dart'; // Import the Personal Use UI
-import '../group/groupListUI.dart'; // Import the Group UI
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../componants/drawer.dart'; // Import the AppDrawer
+import '../biryesel/biryeselUI.dart'; // Import the Personal Use UI
+import '../group/groupListUI.dart'; // Import the Group UI
 
 class UseCasesPage extends StatefulWidget {
   final String username;
-
-  UseCasesPage({required this.username});
+  const UseCasesPage({required this.username, Key? key}) : super(key: key);
 
   @override
-  _UseCasesPageState createState() => _UseCasesPageState();
+  State<UseCasesPage> createState() => _UseCasesPageState();
 }
 
 class _UseCasesPageState extends State<UseCasesPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  List<Map<String, dynamic>> _personalTasks = [];
+  Stream<QuerySnapshot> _getAllTasksStream() {
+    final user = _auth.currentUser;
+    if (user == null) return Stream.empty();
 
-  Future<void> _fetchTodayTasks() async {
-    try {
-      DateTime now = DateTime.now();
-      Timestamp todayStart =
-          Timestamp.fromDate(DateTime(now.year, now.month, now.day));
-      Timestamp tomorrowStart =
-          Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
-
-      String currentUserId = _auth.currentUser!.uid;
-
-      QuerySnapshot snapshot = await _firestore
-          .collection('personal_tasks')
-          .where('uid', isEqualTo: currentUserId)
-          .where('date', isGreaterThanOrEqualTo: todayStart)
-          .where('date', isLessThan: tomorrowStart)
-          .get();
-
-      setState(() {
-        _personalTasks = snapshot.docs
-            .map((doc) => doc.data() as Map<String, dynamic>)
-            .toList();
-      });
-
-      // Debugging: Print the fetched tasks
-      print('Fetched tasks: $_personalTasks');
-    } catch (e) {
-      print('Error fetching tasks: $e');
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchTodayTasks(); // Fetch tasks when the page loads
+    return _firestore
+        .collection('personal_tasks')
+        .where('uid', isEqualTo: user.uid)
+        .snapshots();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Choose Use Case'),
+        title: const Text('Choose Use Case'),
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage()),
-              );
+              await _auth.signOut();
+              Navigator.pushReplacementNamed(context, '/login');
             },
           ),
         ],
         backgroundColor: const Color.fromARGB(255, 4, 135, 241),
       ),
-      drawer: AppDrawer(),
+      drawer: AppDrawer(), // Add the AppDrawer here
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -87,143 +53,132 @@ class _UseCasesPageState extends State<UseCasesPage> {
             // Welcome Message
             Text(
               'Hello ${widget.username}',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             // Use Case Cards
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 4,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => PersonalUsePage()),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.person, size: 48, color: Colors.blue),
-                            SizedBox(height: 8),
-                            Text(
-                              'Individual Use',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 4,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => GroupUIPage()),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.people, size: 48, color: Colors.blue),
-                            SizedBox(height: 8),
-                            Text(
-                              'Group Use',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-
-            // Personal Tasks Due Today
-            Text(
-              'Personal Tasks Due Today',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            if (_personalTasks.isEmpty)
-              Center(
-                child: Text(
-                  'You don\'t have any tasks for today.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _personalTasks.length,
-                  itemBuilder: (context, index) {
-                    var task = _personalTasks[index];
-                    DateTime dueDate = (task['date'] as Timestamp).toDate();
-                    return Card(
-                      margin: EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(task['title']),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (task['description'] != null &&
-                                task['description'].isNotEmpty)
-                              Text(task['description']),
-                            Text(
-                              '${DateFormat('d MMM yyyy').format(dueDate)} at ${task['time']}',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.chat_bubble_outline),
-                              onPressed: () {
-                                // Handle chat action
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.photo_album_outlined),
-                              onPressed: () {
-                                // Handle attachment action
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                _buildUseCaseCard(
+                  icon: Icons.person,
+                  title: 'Individual Use',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => PersonalUsePage()),
                     );
                   },
                 ),
+                const SizedBox(width: 16),
+                _buildUseCaseCard(
+                  icon: Icons.people,
+                  title: 'Group Use',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => GroupUIPage()),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Tasks List Title
+            const Text(
+              'All Tasks',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+
+            // Tasks List
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _getAllTasksStream(),
+                builder: (context, snapshot) {
+                  // Error Handling
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  // Loading State
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  // Empty State
+                  if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No tasks found'));
+                  }
+
+                  // Success State - Show ALL tasks
+                  return ListView.builder(
+                    itemCount: snapshot.data!.docs.length,
+                    itemBuilder: (context, index) {
+                      final doc = snapshot.data!.docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+
+                      // Debug print to verify we're getting data
+                      debugPrint('Task Data: $data');
+
+                      return Card(
+                        child: ListTile(
+                          title: Text(data['title'] ?? 'No Title'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (data['description'] != null &&
+                                  data['description'].isNotEmpty)
+                                Text(data['description']),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Date: ${data['date'] != null ? DateFormat('MMM d, yyyy').format((data['date'] as Timestamp).toDate()) : 'No date'}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Helper Method to Build Use Case Cards
+  Widget _buildUseCaseCard({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 4,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 48, color: Colors.blue),
+                const SizedBox(height: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
