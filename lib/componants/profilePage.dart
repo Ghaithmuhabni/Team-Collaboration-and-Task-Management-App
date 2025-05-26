@@ -108,6 +108,7 @@ class ProfilePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile'),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241),
       ),
       drawer: AppDrawer(),
       body: FutureBuilder<DocumentSnapshot>(
@@ -146,36 +147,134 @@ class ProfilePage extends StatelessWidget {
 
               return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Name: $displayName',
-                      style: TextStyle(fontSize: 18),
+                child: Card(
+                  color: const Color.fromARGB(255, 255, 244, 244),
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Profile Picture
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.purple,
+                          child: Icon(
+                            Icons.person,
+                            size: 50,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 16),
+
+                        // Name and Email
+                        Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          currentUser.email ?? 'No email available',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        SizedBox(height: 24),
+
+                        // Tasks and Projects Count
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        '$personalTaskCount',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Tasks',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        '$projectParticipationCount',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Projects',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+
+                        // Change Password Button
+                        ElevatedButton(
+                          onPressed: () => _changePassword(context),
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.blue,
+                            minimumSize: Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            'Change Password',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Email: ${currentUser.email}',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Personal Tasks: $personalTaskCount',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Projects Participated In: $projectParticipationCount',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => _changePassword(context),
-                      child: Text('Change Password'),
-                    ),
-                  ],
+                  ),
                 ),
               );
             },

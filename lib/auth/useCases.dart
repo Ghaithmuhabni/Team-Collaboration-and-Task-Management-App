@@ -86,7 +86,7 @@ class _UseCasesPageState extends State<UseCasesPage> {
           children: [
             // Welcome Message
             Text(
-              'Hello, ${widget.username}',
+              'Hello ${widget.username}',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),
