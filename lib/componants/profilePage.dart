@@ -19,28 +19,80 @@ class ProfilePage extends StatelessWidget {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Change Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _oldPasswordController,
-              obscureText: true,
-              decoration: InputDecoration(labelText: 'Old Password'),
+        backgroundColor: Colors.blue[800], // Blue background for the dialog
+        title: Text(
+          'Change Password',
+          style: TextStyle(color: Colors.white), // White title
+        ),
+        content: SingleChildScrollView(
+          // Wrap content in a scrollable widget
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height *
+                    0.8), // Limit dialog height
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min, // Ensure the column takes minimal space
+              children: [
+                TextField(
+                  controller: _oldPasswordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Old Password',
+                    labelStyle: TextStyle(color: Colors.white70), // Light text
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  style: TextStyle(color: Colors.white), // White input text
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _newPasswordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'New Password',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  style: TextStyle(color: Colors.white),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _confirmPasswordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm New Password',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
             ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _newPasswordController,
-              obscureText: true,
-              decoration: InputDecoration(labelText: 'New Password'),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _confirmPasswordController,
-              obscureText: true,
-              decoration: InputDecoration(labelText: 'Confirm New Password'),
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -89,13 +141,22 @@ class ProfilePage extends StatelessWidget {
                 );
               }
             },
-            child: Text('Update'),
+            child: Text(
+              'Update',
+              style: TextStyle(color: Colors.white), // White button text
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white), // White button text
+            ),
           ),
         ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16), // Rounded corners
+        ),
       ),
     );
   }
@@ -161,7 +222,8 @@ class ProfilePage extends StatelessWidget {
                         // Profile Picture
                         CircleAvatar(
                           radius: 50,
-                          backgroundColor: Colors.purple,
+                          backgroundColor:
+                              const Color.fromARGB(255, 72, 160, 233),
                           child: Icon(
                             Icons.person,
                             size: 50,
