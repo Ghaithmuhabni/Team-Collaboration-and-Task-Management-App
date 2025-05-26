@@ -113,113 +113,205 @@ class _AddProjectPageState extends State<AddProjectPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Add Project')),
+      appBar: AppBar(
+        title: Text(
+          'Add Project',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(labelText: 'Project Name'),
-            ),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(labelText: 'Project Description'),
-            ),
-            CheckboxListTile(
-              title: Text("Add Client?"),
-              value: _isAddingClient,
-              onChanged: (value) {
-                setState(() {
-                  _isAddingClient = value!;
-                  if (!value) {
-                    _selectedClient = null;
-                    _clientSearchController.clear();
-                  }
-                });
-              },
-            ),
-            if (_isAddingClient)
-              Column(
-                children: [
-                  TextField(
-                    controller: _clientSearchController,
-                    decoration: InputDecoration(labelText: 'Search Client'),
-                    onChanged: (value) =>
-                        _searchUsers(value, isClientSearch: true),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Project Name Input
+              TextField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'Project Name',
+                  labelStyle: TextStyle(color: Colors.blue[800]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  if (_clientSearchResults.isNotEmpty)
-                    SizedBox(
-                      height: 150,
-                      child: ListView.builder(
-                        itemCount: _clientSearchResults.length,
-                        itemBuilder: (context, index) {
-                          var user = _clientSearchResults[index];
-                          return ListTile(
-                            title: Text(user['name']!),
-                            onTap: () {
-                              setState(() {
-                                _selectedClient = user;
-                                _clientSearchResults.clear();
-                                _clientSearchController.clear();
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  if (_selectedClient != null)
-                    Chip(
-                      label: Text(_selectedClient!['name']!),
-                      backgroundColor: Colors.orange[200],
-                      onDeleted: () {
-                        setState(() {
-                          _selectedClient = null;
-                        });
-                      },
-                    ),
-                ],
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue[800]!),
+                  ),
+                ),
               ),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(labelText: 'Search Team Members'),
-              onChanged: _searchUsers,
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _searchResults.length,
-                itemBuilder: (context, index) {
-                  var user = _searchResults[index];
-                  return ListTile(
-                    title: Text(user['name']!),
-                    onTap: () {
-                      setState(() {
-                        _selectedMembers.add(user);
-                        _searchResults.clear();
-                        _searchController.clear();
-                      });
-                    },
-                  );
+              SizedBox(height: 16),
+
+              // Project Description Input
+              TextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Project Description',
+                  labelStyle: TextStyle(color: Colors.blue[800]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue[800]!),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+
+              // Add Client Checkbox
+              CheckboxListTile(
+                title: Text("Add Client?",
+                    style: TextStyle(color: Colors.blue[800])),
+                value: _isAddingClient,
+                onChanged: (value) {
+                  setState(() {
+                    _isAddingClient = value!;
+                    if (!value) {
+                      _selectedClient = null;
+                      _clientSearchController.clear();
+                    }
+                  });
                 },
+                activeColor: Colors.blue[800], // Blue theme
               ),
-            ),
-            Wrap(
-              children: _selectedMembers
-                  .map((member) => Chip(
-                        label: Text(member['name']!),
+
+              if (_isAddingClient)
+                Column(
+                  children: [
+                    // Search Client Input
+                    TextField(
+                      controller: _clientSearchController,
+                      decoration: InputDecoration(
+                        labelText: 'Search Client',
+                        labelStyle: TextStyle(color: Colors.blue[800]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue[800]!),
+                        ),
+                      ),
+                      onChanged: (value) =>
+                          _searchUsers(value, isClientSearch: true),
+                    ),
+                    SizedBox(height: 8),
+
+                    // Display Client Search Results
+                    if (_clientSearchResults.isNotEmpty)
+                      SizedBox(
+                        height: 150,
+                        child: ListView.builder(
+                          itemCount: _clientSearchResults.length,
+                          itemBuilder: (context, index) {
+                            var user = _clientSearchResults[index];
+                            return ListTile(
+                              title: Text(user['name']!),
+                              onTap: () {
+                                setState(() {
+                                  _selectedClient = user;
+                                  _clientSearchResults.clear();
+                                  _clientSearchController.clear();
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+
+                    // Display Selected Client
+                    if (_selectedClient != null)
+                      Chip(
+                        label: Text(_selectedClient!['name']!),
+                        backgroundColor: Colors.blue[200],
                         onDeleted: () {
                           setState(() {
-                            _selectedMembers.remove(member);
+                            _selectedClient = null;
                           });
                         },
-                      ))
-                  .toList(),
-            ),
-            ElevatedButton(
-              onPressed: _createProject,
-              child: Text('Create Project'),
-            ),
-          ],
+                      ),
+                  ],
+                ),
+              SizedBox(height: 16),
+
+              // Search Team Members Input
+              TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Search Team Members',
+                  labelStyle: TextStyle(color: Colors.blue[800]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue[800]!),
+                  ),
+                ),
+                onChanged: _searchUsers,
+              ),
+              SizedBox(height: 8),
+
+              // Display Search Results
+              if (_searchResults.isNotEmpty)
+                SizedBox(
+                  height: 150,
+                  child: ListView.builder(
+                    itemCount: _searchResults.length,
+                    itemBuilder: (context, index) {
+                      var user = _searchResults[index];
+                      return ListTile(
+                        title: Text(user['name']!),
+                        onTap: () {
+                          setState(() {
+                            _selectedMembers.add(user);
+                            _searchResults.clear();
+                            _searchController.clear();
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+              // Display Selected Members
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _selectedMembers
+                    .map((member) => Chip(
+                          label: Text(member['name']!),
+                          backgroundColor: Colors.blue[200],
+                          onDeleted: () {
+                            setState(() {
+                              _selectedMembers.remove(member);
+                            });
+                          },
+                        ))
+                    .toList(),
+              ),
+              SizedBox(height: 16),
+
+              // Create Project Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _createProject,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        const Color.fromARGB(255, 4, 135, 241), // Blue theme
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Text(
+                    'Create Project',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
