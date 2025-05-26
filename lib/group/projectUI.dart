@@ -22,6 +22,13 @@ class _ProjectUIState extends State<ProjectUI> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Fetch the project name from Firestore
+  Future<String> _getProjectName(String projectId) async {
+    DocumentSnapshot projectDoc =
+        await _firestore.collection('projects').doc(projectId).get();
+    return projectDoc['title'] ?? 'Unnamed Project';
+  }
+
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'High':
@@ -111,7 +118,26 @@ class _ProjectUIState extends State<ProjectUI> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage Tasks'),
+        title: FutureBuilder<String>(
+          future: _getProjectName(widget.projectId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Text('Loading...'); // Show loading while fetching the name
+            }
+            if (snapshot.hasError) {
+              return Text('Error'); // Handle errors gracefully
+            }
+            return Text(
+              snapshot.data ??
+                  'Unnamed Project', // Use the fetched project name
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white), // White text for better contrast
+            );
+          },
+        ),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
         actions: [
           StreamBuilder<DocumentSnapshot>(
             stream: _firestore
@@ -121,7 +147,7 @@ class _ProjectUIState extends State<ProjectUI> {
             builder: (context, snapshot) {
               if (!snapshot.hasData || !snapshot.data!.exists) {
                 return IconButton(
-                  icon: Icon(Icons.forum),
+                  icon: Icon(Icons.forum, color: Colors.white),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -134,34 +160,30 @@ class _ProjectUIState extends State<ProjectUI> {
                   },
                 );
               }
-
               Map<String, dynamic>? data =
                   snapshot.data?.data() as Map<String, dynamic>?;
               String currentUserId = _auth.currentUser!.uid;
               Timestamp lastMessageTimestamp =
-                  data?['lastMessageTimestamp'] as Timestamp? ?? Timestamp(0, 0);
-              Timestamp lastSeenTimestamp =
-                  (data?['lastSeen'] as Map<String, dynamic>? ?? {})[currentUserId] as Timestamp? ??
+                  data?['lastMessageTimestamp'] as Timestamp? ??
                       Timestamp(0, 0);
-
+              Timestamp lastSeenTimestamp =
+                  (data?['lastSeen'] as Map<String, dynamic>? ??
+                          {})[currentUserId] as Timestamp? ??
+                      Timestamp(0, 0);
               bool hasUnreadMessages =
                   lastMessageTimestamp.compareTo(lastSeenTimestamp) > 0;
-
               return Stack(
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.forum),
+                    icon: Icon(Icons.forum, color: Colors.white),
                     onPressed: () async {
-                      // Mark messages as read by updating the lastSeen timestamp
                       await _firestore
                           .collection('project_conversation')
                           .doc(widget.projectId)
                           .update({
                         'lastSeen.$currentUserId': FieldValue.serverTimestamp(),
                       });
-
-                      // Navigate to the chat screen
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -182,7 +204,8 @@ class _ProjectUIState extends State<ProjectUI> {
                           color: Colors.red,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        constraints: BoxConstraints(minWidth: 12, minHeight: 12),
+                        constraints:
+                            BoxConstraints(minWidth: 12, minHeight: 12),
                         child: Text(
                           '!',
                           style: TextStyle(
@@ -199,7 +222,7 @@ class _ProjectUIState extends State<ProjectUI> {
           ),
           if (widget.isManager)
             IconButton(
-              icon: Icon(Icons.add),
+              icon: Icon(Icons.add, color: Colors.white),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -220,7 +243,14 @@ class _ProjectUIState extends State<ProjectUI> {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  const Color.fromARGB(255, 4, 135, 241), // Blue theme
+                ),
+                strokeWidth: 3, // Smaller stroke width
+              ),
+            );
           }
           if (snapshot.data!.docs.isEmpty) {
             return Center(
@@ -238,12 +268,13 @@ class _ProjectUIState extends State<ProjectUI> {
               ),
             );
           }
-          return ListView(
-            children: snapshot.data!.docs.map((task) {
+          return ListView.builder(
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              var task = snapshot.data!.docs[index];
               DateTime dueDate = DateTime.parse(task['dueDate']);
               String assignedUsername = task['assignedTo'] ?? 'Unassigned';
               String taskStatus = task['status'] ?? 'Started';
-
               return FutureBuilder<DocumentSnapshot>(
                 future: _firestore
                     .collection('users')
@@ -260,12 +291,20 @@ class _ProjectUIState extends State<ProjectUI> {
                       userSnapshot.data!['username'] ?? 'Unknown';
                   bool isCurrentUserAssigned =
                       currentUsername == assignedUsername;
-
                   return Card(
                     margin: EdgeInsets.all(10),
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     color: _getPriorityColor(task['priority']),
                     child: ListTile(
-                      title: Text(task['title']),
+                      title: Text(
+                        task['title'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -354,9 +393,31 @@ class _ProjectUIState extends State<ProjectUI> {
                   );
                 },
               );
-            }).toList(),
+            },
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (widget.isManager) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddTaskProjectPage(
+                  projectId: widget.projectId,
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Only the project manager can add tasks.'),
+              ),
+            );
+          }
+        },
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
+        child: Icon(Icons.add, color: Colors.white), // White "+" icon
       ),
     );
   }

@@ -96,7 +96,14 @@ class _GroupUIPageState extends State<GroupUIPage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  const Color.fromARGB(255, 4, 135, 241), // Blue color
+                ),
+                strokeWidth: 3, // Smaller stroke width
+              ),
+            );
           }
           if (snapshot.data!.docs.isEmpty) {
             return Center(
@@ -120,19 +127,33 @@ class _GroupUIPageState extends State<GroupUIPage> {
               var project = snapshot.data!.docs[index];
               bool isProjectManager = project['managerId'] == currentUser.uid;
               String projectStatus = project['status'] ?? 'Ongoing';
-
               return FutureBuilder<String>(
                 future: _getManagerName(project['managerId']),
                 builder: (context, managerSnapshot) {
                   if (!managerSnapshot.hasData) {
-                    return CircularProgressIndicator();
+                    return Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          const Color.fromARGB(255, 4, 135, 241), // Blue color
+                        ),
+                        strokeWidth: 3, // Smaller stroke width
+                      ),
+                    );
                   }
                   return FutureBuilder<List<Map<String, String>>>(
                     future:
                         _fetchProjectMembers(project['members'], project.id),
                     builder: (context, membersSnapshot) {
                       if (!membersSnapshot.hasData) {
-                        return CircularProgressIndicator();
+                        return Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              const Color.fromARGB(
+                                  255, 4, 135, 241), // Blue color
+                            ),
+                            strokeWidth: 3, // Smaller stroke width
+                          ),
+                        );
                       }
                       return Card(
                         margin: EdgeInsets.all(10),
@@ -312,7 +333,10 @@ class _GroupUIPageState extends State<GroupUIPage> {
                                         TextButton(
                                           onPressed: () =>
                                               Navigator.pop(context),
-                                          child: Text('Close'),
+                                          child: Text('Close',
+                                              style: TextStyle(
+                                                color: Colors.blue[800],
+                                              )),
                                         ),
                                       ],
                                     ),
