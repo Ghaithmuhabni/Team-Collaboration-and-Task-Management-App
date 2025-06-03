@@ -19,23 +19,33 @@ class ConversationScreen extends StatefulWidget {
 class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  late String currentUserId;
+
+  // Generate a unique conversation ID for a pair of users
+  String generateConversationId(String userId1, String userId2) {
+    List<String> ids = [userId1, userId2]..sort(); // Sort IDs alphabetically
+    return '${ids[0]}_${ids[1]}'; // Combine them with an underscore
+  }
 
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
     try {
+      String conversationId =
+          generateConversationId(currentUserId, widget.otherUserId);
+
       // Check if the conversation document exists
       DocumentSnapshot conversationDoc = await _firestore
           .collection('one_one_conversation')
-          .doc(widget.conversationId)
+          .doc(conversationId)
           .get();
 
       if (!conversationDoc.exists) {
         // Create the conversation document if it doesn't exist
         await _firestore
             .collection('one_one_conversation')
-            .doc(widget.conversationId)
+            .doc(conversationId)
             .set({
           'lastMessage': text.trim(),
           'lastMessageTimestamp': FieldValue.serverTimestamp(),
@@ -45,7 +55,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       // Add the message to Firestore
       await _firestore
           .collection('one_one_conversation')
-          .doc(widget.conversationId)
+          .doc(conversationId)
           .collection('chats')
           .add({
         'senderId': currentUserId,
@@ -56,7 +66,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       // Update the last message and timestamp in the conversation document
       await _firestore
           .collection('one_one_conversation')
-          .doc(widget.conversationId)
+          .doc(conversationId)
           .update({
         'lastMessage': text.trim(),
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
@@ -78,7 +88,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    currentUserId = _auth.currentUser!.uid;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    String conversationId =
+        generateConversationId(currentUserId, widget.otherUserId);
+
     return Scaffold(
       appBar: AppBar(
         title: FutureBuilder<DocumentSnapshot>(
@@ -88,6 +107,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
             return Text(snapshot.data!['username']);
           },
         ),
+        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
+        elevation: 0, // Remove shadow for a cleaner look
       ),
       body: Column(
         children: [
@@ -95,13 +116,39 @@ class _ConversationScreenState extends State<ConversationScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
                   .collection('one_one_conversation')
-                  .doc(widget.conversationId)
+                  .doc(conversationId)
                   .collection('chats')
                   .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
-                  return Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData) {
+                  return Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        const Color.fromARGB(255, 4, 135, 241), // Blue theme
+                      ),
+                    ),
+                  );
+                }
+
+                if (snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat_bubble_outline,
+                            size: 50, color: Colors.grey),
+                        SizedBox(height: 10),
+                        Text(
+                          'No messages yet.\nStart the conversation!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
                 return ListView.builder(
                   reverse: true,
                   itemCount: snapshot.data!.docs.length,
@@ -114,12 +161,22 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       child: Container(
                         margin:
                             EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                        padding: EdgeInsets.all(10),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                         decoration: BoxDecoration(
-                          color: isMe ? Colors.blue[200] : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(10),
+                          color: isMe
+                              ? const Color.fromARGB(
+                                  255, 4, 135, 241) // Blue theme
+                              : Colors.grey[300], // Light grey for others
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(message['text']),
+                        child: Text(
+                          message['text'],
+                          style: TextStyle(
+                            color: isMe ? Colors.white : Colors.black,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -127,6 +184,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
               },
             ),
           ),
+          Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -134,11 +192,35 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
-                    decoration: InputDecoration(hintText: 'Type a message...'),
+                    decoration: InputDecoration(
+                      hintText: 'Type a message...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: const Color.fromARGB(255, 4, 135, 241),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: const Color.fromARGB(255, 4, 135, 241),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: const Color.fromARGB(255, 4, 135, 241),
+                        ),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.send),
+                  icon: Icon(Icons.send,
+                      color:
+                          const Color.fromARGB(255, 4, 135, 241)), // Blue theme
                   onPressed: () => _sendMessage(_messageController.text),
                 ),
               ],
