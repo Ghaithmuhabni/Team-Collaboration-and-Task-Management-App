@@ -2,12 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_3/group/conversationScreen.dart';
+import 'package:flutter_application_3/group/groupConversationPage.dart';
 import 'package:intl/intl.dart';
 import 'addTaskProject.dart';
 import 'editTaskProject.dart';
 import 'taskDetails.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:awesome_dialog/awesome_dialog.dart'; // Import AwesomeDialog
 
 class ProjectUI extends StatefulWidget {
   final String projectId;
@@ -56,30 +56,37 @@ class _ProjectUIState extends State<ProjectUI> {
       );
       return;
     }
-
-    AwesomeDialog(
+    showDialog(
       context: context,
-      dialogType: DialogType.question,
-      animType: AnimType.scale,
-      title: 'Edit or Delete Task',
-      desc: 'Would you like to edit or delete this task?',
-      btnOkText: 'Edit',
-      btnOkOnPress: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EditTaskProjectPage(
-              taskId: task.id,
-              taskData: task.data() as Map<String, dynamic>,
-            ),
+      builder: (context) => AlertDialog(
+        title: Text('Edit or Delete Task'),
+        content: Text('Would you like to edit or delete this task?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditTaskProjectPage(
+                    taskId: task.id,
+                    taskData: task.data() as Map<String, dynamic>,
+                  ),
+                ),
+              );
+            },
+            child: Text('Edit'),
           ),
-        );
-      },
-      btnCancelText: 'Delete',
-      btnCancelOnPress: () async {
-        await _deleteTask(task.id);
-      },
-    ).show();
+          TextButton(
+            onPressed: () async {
+              await _deleteTask(task.id);
+              Navigator.pop(context);
+            },
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   IconData _getStatusIcon(String status) {
@@ -132,11 +139,104 @@ class _ProjectUIState extends State<ProjectUI> {
         ),
         backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
         actions: [
+          StreamBuilder<DocumentSnapshot>(
+            stream: _firestore
+                .collection('project_conversation')
+                .doc(widget.projectId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return IconButton(
+                  icon: Icon(Icons.forum, color: Colors.white),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupConversationPage(
+                          projectId: widget.projectId,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }
+              Map<String, dynamic>? data =
+                  snapshot.data?.data() as Map<String, dynamic>?;
+              String currentUserId = _auth.currentUser!.uid;
+              Timestamp lastMessageTimestamp =
+                  data?['lastMessageTimestamp'] as Timestamp? ??
+                      Timestamp(0, 0);
+              Timestamp lastSeenTimestamp =
+                  (data?['lastSeen'] as Map<String, dynamic>? ??
+                          {})[currentUserId] as Timestamp? ??
+                      Timestamp(0, 0);
+              bool hasUnreadMessages =
+                  lastMessageTimestamp.compareTo(lastSeenTimestamp) > 0;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.forum, color: Colors.white),
+                    onPressed: () async {
+                      // Mark messages as read by updating the lastSeen timestamp
+                      await _firestore
+                          .collection('project_conversation')
+                          .doc(widget.projectId)
+                          .update({
+                        'lastSeen.$currentUserId': FieldValue.serverTimestamp(),
+                      });
+                      // Navigate to the chat screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GroupConversationPage(
+                            projectId: widget.projectId,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  if (hasUnreadMessages)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        constraints:
+                            BoxConstraints(minWidth: 12, minHeight: 12),
+                        child: Text(
+                          '!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.group, color: Colors.white),
             onPressed: () async {
+              // Fetch the project document to get the list of member IDs
+              DocumentSnapshot projectDoc = await _firestore
+                  .collection('projects')
+                  .doc(widget.projectId)
+                  .get();
+              List<dynamic> memberIds = projectDoc['members'] ?? [];
+
+              // Fetch project members using the retrieved member IDs
               List<Map<String, String>> members =
-                  await _fetchProjectMembers([], widget.projectId);
+                  await _fetchProjectMembers(memberIds, widget.projectId);
+
+              // Show the dialog with the list of members
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -176,20 +276,6 @@ class _ProjectUIState extends State<ProjectUI> {
               );
             },
           ),
-          if (widget.isManager)
-            IconButton(
-              icon: Icon(Icons.add, color: Colors.white),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddTaskProjectPage(
-                      projectId: widget.projectId,
-                    ),
-                  ),
-                );
-              },
-            ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
