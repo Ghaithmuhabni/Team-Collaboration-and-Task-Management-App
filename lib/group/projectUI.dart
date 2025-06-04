@@ -1,13 +1,14 @@
 // projectUI.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_3/group/conversationScreen.dart';
-import 'package:flutter_application_3/group/groupConversationPage.dart';
-import 'package:intl/intl.dart';
-import 'addTaskProject.dart';
-import 'editTaskProject.dart';
-import 'taskDetails.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_3/group/StatusScreens/continuesTasks.dart';
+import 'package:flutter_application_3/group/StatusScreens/finishedTask.dart';
+import 'package:flutter_application_3/group/StatusScreens/newTasks.dart';
+import 'package:flutter_application_3/group/addTaskProject.dart';
+import 'package:flutter_application_3/group/groupConversationPage.dart';
+import 'conversationScreen.dart';
+import 'package:flutter_application_3/group/StatusScreens/startedTask.dart';
 
 class ProjectUI extends StatefulWidget {
   final String projectId;
@@ -23,121 +24,86 @@ class _ProjectUIState extends State<ProjectUI> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Fetch the project name from Firestore
-  Future<String> _getProjectName(String projectId) async {
-    DocumentSnapshot projectDoc =
-        await _firestore.collection('projects').doc(projectId).get();
-    return projectDoc['title'] ?? 'Unnamed Project';
-  }
+  Future<List<Map<String, String>>> _fetchProjectMembers(
+      List<dynamic> memberIds, String projectId) async {
+    List<Map<String, String>> members = [];
+    String currentUserId = _auth.currentUser!.uid; // Get the current user's ID
 
-  Color _getPriorityColor(String priority) {
-    switch (priority) {
-      case 'High':
-        return Colors.red[300]!;
-      case 'Normal':
-        return Colors.orange[300]!;
-      case 'Low':
-        return Colors.green[300]!;
-      default:
-        return Colors.grey[200]!;
+    try {
+      DocumentSnapshot projectDoc =
+          await _firestore.collection('projects').doc(projectId).get();
+      if (!projectDoc.exists) return [];
+
+      String managerId = projectDoc['managerId'];
+      String clientId = projectDoc['client'] ?? '';
+
+      // Add the manager if they are not the current user
+      if (managerId != currentUserId) {
+        DocumentSnapshot managerDoc =
+            await _firestore.collection('users').doc(managerId).get();
+        if (managerDoc.exists) {
+          members.add({
+            'id': managerId,
+            'username': '${managerDoc['username']} (Manager)',
+          });
+        }
+      }
+
+      // Add the client if they are not the current user
+      if (clientId.isNotEmpty && clientId != currentUserId) {
+        DocumentSnapshot clientDoc =
+            await _firestore.collection('users').doc(clientId).get();
+        if (clientDoc.exists) {
+          members.add({
+            'id': clientId,
+            'username': '${clientDoc['username']} (Client)',
+          });
+        }
+      }
+
+      // Add other members if they are not the current user
+      for (String memberId in memberIds) {
+        if (memberId == currentUserId ||
+            memberId == managerId ||
+            memberId == clientId) continue;
+
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(memberId).get();
+        if (userDoc.exists) {
+          members.add({
+            'id': memberId,
+            'username': '${userDoc['username']} (Member)',
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching project members: $e");
     }
+
+    return members;
   }
 
-  Future<void> _deleteTask(String taskId) async {
-    await _firestore.collection('project_tasks').doc(taskId).delete();
-  }
-
-  void _showEditDeleteDialog(DocumentSnapshot task) {
-    if (!widget.isManager) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Only the project manager can edit or delete tasks.'),
-        ),
-      );
-      return;
-    }
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit or Delete Task'),
-        content: Text('Would you like to edit or delete this task?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditTaskProjectPage(
-                    taskId: task.id,
-                    taskData: task.data() as Map<String, dynamic>,
-                  ),
-                ),
-              );
-            },
-            child: Text('Edit'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _deleteTask(task.id);
-              Navigator.pop(context);
-            },
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
+  String _getStatusForQuery(String title) {
+    switch (title.split(' ')[0]) {
+      case 'New':
+        return 'Pending'; // Match Firestore's actual status name
       case 'Started':
-        return Icons.play_arrow;
-      case 'Continues':
-        return Icons.timelapse;
+        return 'Started';
+      case 'Continuing':
+        return 'Continues'; // Match Firestore's actual status name
       case 'Finished':
-        return Icons.check_circle;
+        return 'Finished';
       default:
-        return Icons.help_outline;
+        return '';
     }
-  }
-
-  Future<bool> _canViewTaskDetails(String assignedTo) async {
-    String currentUserId = _auth.currentUser!.uid;
-    DocumentSnapshot currentUserDoc =
-        await _firestore.collection('users').doc(currentUserId).get();
-    String currentUsername = currentUserDoc['username'] ?? 'Unknown';
-    DocumentSnapshot projectDoc =
-        await _firestore.collection('projects').doc(widget.projectId).get();
-    String clientId = projectDoc['client'] ?? '';
-    return widget.isManager ||
-        currentUserId == clientId ||
-        currentUsername == assignedTo;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: FutureBuilder<String>(
-          future: _getProjectName(widget.projectId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Text('Loading...');
-            }
-            if (snapshot.hasError) {
-              return Text('Error');
-            }
-            return Text(
-              snapshot.data ?? 'Unnamed Project',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white),
-            );
-          },
-        ),
-        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
+        title: Text('Project Tasks'),
+        backgroundColor: Colors.blue[800],
         actions: [
           StreamBuilder<DocumentSnapshot>(
             stream: _firestore
@@ -147,7 +113,7 @@ class _ProjectUIState extends State<ProjectUI> {
             builder: (context, snapshot) {
               if (!snapshot.hasData || !snapshot.data!.exists) {
                 return IconButton(
-                  icon: Icon(Icons.forum, color: Colors.white),
+                  icon: Icon(Icons.forum),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -172,20 +138,19 @@ class _ProjectUIState extends State<ProjectUI> {
                       Timestamp(0, 0);
               bool hasUnreadMessages =
                   lastMessageTimestamp.compareTo(lastSeenTimestamp) > 0;
+
               return Stack(
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.forum, color: Colors.white),
+                    icon: Icon(Icons.forum),
                     onPressed: () async {
-                      // Mark messages as read by updating the lastSeen timestamp
                       await _firestore
                           .collection('project_conversation')
                           .doc(widget.projectId)
                           .update({
                         'lastSeen.$currentUserId': FieldValue.serverTimestamp(),
                       });
-                      // Navigate to the chat screen
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -223,20 +188,16 @@ class _ProjectUIState extends State<ProjectUI> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.group, color: Colors.white),
+            icon: Icon(Icons.group),
             onPressed: () async {
-              // Fetch the project document to get the list of member IDs
+              // Fetch the project document to get the memberIds list
               DocumentSnapshot projectDoc = await _firestore
                   .collection('projects')
                   .doc(widget.projectId)
                   .get();
               List<dynamic> memberIds = projectDoc['members'] ?? [];
-
-              // Fetch project members using the retrieved member IDs
               List<Map<String, String>> members =
                   await _fetchProjectMembers(memberIds, widget.projectId);
-
-              // Show the dialog with the list of members
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -268,8 +229,7 @@ class _ProjectUIState extends State<ProjectUI> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Close',
-                          style: TextStyle(color: Colors.blue[800])),
+                      child: Text('Close'),
                     ),
                   ],
                 ),
@@ -278,238 +238,146 @@ class _ProjectUIState extends State<ProjectUI> {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('project_tasks')
-            .where('projectId', isEqualTo: widget.projectId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  const Color.fromARGB(255, 4, 135, 241), // Blue theme
-                ),
-                strokeWidth: 3, // Smaller stroke width
-              ),
-            );
-          }
-          if (snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.task_alt, size: 50, color: Colors.grey),
-                  SizedBox(height: 10),
-                  Text(
-                    'No tasks found.\nPress + to create a new task.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            );
-          }
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              var task = snapshot.data!.docs[index];
-              DateTime dueDate = DateTime.parse(task['dueDate']);
-              String assignedUsername = task['assignedTo'] ?? 'Unassigned';
-              String taskStatus = task['status'] ?? 'Started';
-              return FutureBuilder<DocumentSnapshot>(
-                future: _firestore
-                    .collection('users')
-                    .doc(_auth.currentUser!.uid)
-                    .get(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                    return ListTile(
-                      title: Text(task['title']),
-                      subtitle: Text('Loading...'),
-                    );
-                  }
-                  String currentUsername =
-                      userSnapshot.data!['username'] ?? 'Unknown';
-                  bool isCurrentUserAssigned =
-                      currentUsername == assignedUsername;
-                  return Card(
-                    margin: EdgeInsets.all(10),
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    color: _getPriorityColor(task['priority']),
-                    child: ListTile(
-                      title: Text(
-                        task['title'],
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text('Assigned To: '),
-                              Text(
-                                assignedUsername,
-                                style: TextStyle(
-                                  color:
-                                      isCurrentUserAssigned ? Colors.red : null,
-                                  fontWeight: isCurrentUserAssigned
-                                      ? FontWeight.bold
-                                      : null,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                  'Due: ${DateFormat('yyyy-MM-dd / HH:mm').format(dueDate)}'),
-                            ],
-                          ),
-                        ],
-                      ),
-                      trailing: isCurrentUserAssigned
-                          ? DropdownButton<String>(
-                              value: taskStatus,
-                              items: ['Started', 'Continues', 'Finished']
-                                  .map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Row(
-                                    children: [
-                                      Icon(_getStatusIcon(value)),
-                                      SizedBox(width: 5),
-                                      Text(value),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) async {
-                                if (newValue != null) {
-                                  await _firestore
-                                      .collection('project_tasks')
-                                      .doc(task.id)
-                                      .update({'status': newValue});
-                                }
-                              },
-                            )
-                          : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(_getStatusIcon(taskStatus)),
-                                SizedBox(width: 5),
-                                Text(taskStatus),
-                              ],
-                            ),
-                      onTap: () async {
-                        bool canView =
-                            await _canViewTaskDetails(assignedUsername);
-                        if (canView) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TaskDetailsPage(
-                                taskId: task.id,
-                                taskData: task.data() as Map<String, dynamic>,
-                              ),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'You do not have permission to view this task.'),
-                            ),
-                          );
-                        }
-                      },
-                      onLongPress: () {
-                        _showEditDeleteDialog(task);
-                      },
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (widget.isManager) {
-            Navigator.push(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _buildTaskCard(
               context,
-              MaterialPageRoute(
-                builder: (context) => AddTaskProjectPage(
-                  projectId: widget.projectId,
-                ),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Only the project manager can add tasks.'),
-              ),
-            );
-          }
-        },
-        backgroundColor: const Color.fromARGB(255, 4, 135, 241), // Blue theme
-        child: Icon(Icons.add, color: Colors.white), // White "+" icon
+              'New Tasks',
+              Icons.new_releases,
+              Colors.blue,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        NewTaskPage(projectId: widget.projectId),
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 16),
+            _buildTaskCard(
+              context,
+              'Started Tasks',
+              Icons.play_arrow,
+              Colors.orange,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => StartedTasksPage(
+                      projectId: widget.projectId,
+                      isManager: widget.isManager,
+                    ),
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 16),
+            _buildTaskCard(
+              context,
+              'Continuing Tasks',
+              Icons.timelapse,
+              Colors.green,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ContinuedTasksPage(
+                      projectId: widget.projectId,
+                      isManager: widget.isManager,
+                    ),
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 16),
+            _buildTaskCard(
+              context,
+              'Finished Tasks',
+              Icons.check_circle,
+              Colors.red,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FinishedTasksPage(
+                        projectId: widget.projectId,
+                        isManager: widget.isManager),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
+      floatingActionButton: widget.isManager
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddTaskProjectPage(
+                      projectId: widget.projectId,
+                    ),
+                  ),
+                );
+              },
+              backgroundColor:
+                  const Color.fromARGB(255, 4, 135, 241), // Blue theme
+              child: Icon(Icons.add, color: Colors.white), // White "+" icon
+            )
+          : null,
     );
   }
 
-  Future<List<Map<String, String>>> _fetchProjectMembers(
-      List<dynamic> memberIds, String projectId) async {
-    List<Map<String, String>> members = [];
-    String currentUserId = _auth.currentUser!.uid;
-    try {
-      DocumentSnapshot projectDoc =
-          await _firestore.collection('projects').doc(projectId).get();
-      if (!projectDoc.exists) return [];
-      String managerId = projectDoc['managerId'];
-      String clientId = projectDoc['client'] ?? '';
-      if (managerId != currentUserId) {
-        DocumentSnapshot managerDoc =
-            await _firestore.collection('users').doc(managerId).get();
-        if (managerDoc.exists) {
-          members.add({
-            'id': managerId,
-            'username': '${managerDoc['username']} (Manager)',
-          });
-        }
-      }
-      if (clientId.isNotEmpty && clientId != currentUserId) {
-        DocumentSnapshot clientDoc =
-            await _firestore.collection('users').doc(clientId).get();
-        if (clientDoc.exists) {
-          members.add({
-            'id': clientId,
-            'username': '${clientDoc['username']} (Client)',
-          });
-        }
-      }
-      for (String memberId in memberIds) {
-        if (memberId == currentUserId ||
-            memberId == managerId ||
-            memberId == clientId) continue;
-        DocumentSnapshot userDoc =
-            await _firestore.collection('users').doc(memberId).get();
-        if (userDoc.exists) {
-          members.add({
-            'id': memberId,
-            'username': '${userDoc['username']} (Member)',
-          });
-        }
-      }
-    } catch (e) {
-      print("Error fetching project members: $e");
-    }
-    return members;
+  Widget _buildTaskCard(BuildContext context, String title, IconData icon,
+      Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Container(
+          height: 100,
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, size: 40, color: color),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    StreamBuilder<QuerySnapshot>(
+                      stream: _firestore
+                          .collection('project_tasks')
+                          .where('projectId', isEqualTo: widget.projectId)
+                          .where('status', isEqualTo: _getStatusForQuery(title))
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return Text('Loading...');
+                        }
+                        int count = snapshot.data!.docs.length;
+                        return Text('$count tasks');
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

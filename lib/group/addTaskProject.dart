@@ -7,7 +7,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 
 class AddTaskProjectPage extends StatefulWidget {
   final String projectId;
-
   AddTaskProjectPage({required this.projectId});
 
   @override
@@ -23,7 +22,6 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
   final TextEditingController _assignedToController = TextEditingController();
   final TextEditingController _dueDateController = TextEditingController();
   final TextEditingController _dueTimeController = TextEditingController();
-
   DateTime? _dueDate;
   TimeOfDay? _dueTime;
   String _priority = 'Normal';
@@ -123,7 +121,7 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
       'assignedTo': _assignedToController.text,
       'dueDate': combinedDateTime.toIso8601String(),
       'priority': _priority,
-      'status': 'Started',
+      'status': 'Pending', // Changed from 'Started' to 'Pending'
       'projectId': widget.projectId,
       'fileUrl': fileUrl,
     });
