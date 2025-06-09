@@ -24,9 +24,9 @@ if (flutterVersionName == null) {
 }
 
 android {
-    compileSdkVersion 33
+    compileSdkVersion 35
     namespace "com.example.flutter_application_3"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 35
     ndkVersion "25.1.8937393"
 
     compileOptions {

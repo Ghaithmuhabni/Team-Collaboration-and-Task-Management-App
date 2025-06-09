@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class TaskDetailsPage extends StatefulWidget {
   final String taskId;
@@ -22,24 +26,43 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
 
   Future<void> _downloadFile(String fileUrl) async {
     try {
-      final ref = _storage.refFromURL(fileUrl);
-      final downloadUrl = await ref.getDownloadURL();
-      print("Download URL: $downloadUrl");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('File downloaded successfully!'),
-          backgroundColor: const Color.fromARGB(255, 4, 135, 241),
-        ),
-      );
+      if (fileUrl == null || fileUrl.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No file attached.')),
+        );
+        return;
+      }
+
+      // Fetch the file from the URL
+      final response = await http.get(Uri.parse(fileUrl));
+      if (response.statusCode == 200) {
+        // Get the application documents directory
+        Directory? appDocDir = await getApplicationDocumentsDirectory();
+
+        // Extract the file name from the URL
+        String fileName = Uri.parse(fileUrl).pathSegments.last;
+
+        // Define the local file path
+        String filePath = '${appDocDir.path}/$fileName';
+
+        // Save the file to the device
+        File file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File downloaded successfully!')),
+        );
+      } else {
+        throw Exception('Failed to download file');
+      }
     } catch (e) {
       print("Error downloading file: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to download file.'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Failed to download file. Error: $e')),
       );
     }
+    print("File URL: $fileUrl");
   }
 
   @override

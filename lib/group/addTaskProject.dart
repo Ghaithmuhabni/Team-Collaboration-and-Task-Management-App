@@ -1,9 +1,12 @@
 // addTaskProject.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
+import 'package:path/path.dart';
 
 class AddTaskProjectPage extends StatefulWidget {
   final String projectId;
@@ -28,10 +31,90 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
   List<Map<String, String>> _teamMembers = [];
   PlatformFile? _file;
 
+  File? file;
+  String? url;
+
+  getImage() async {
+    final ImagePicker picker = ImagePicker();
+    XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      file = File(pickedFile.path);
+      setState(() {});
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _loadTeamMembers();
+  }
+
+  Future<void> _removeImage() async {
+    if (file == null) {
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(content: Text('No image selected to remove.')),
+      );
+      return;
+    }
+
+    try {
+      setState(() {
+        file = null; // Reset the file state
+        url = null; // Clear the download URL if any
+      });
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(content: Text('Image removed successfully.')),
+      );
+    } catch (e) {
+      print("Error removing image: $e");
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(content: Text('Failed to remove image.')),
+      );
+    }
+  }
+
+// Widget to display the image upload section
+  Widget _buildImageUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ElevatedButton(
+              onPressed: getImage, // Use the existing getImage function
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 4, 135, 241),
+              ),
+              child: Text(
+                file == null ? 'Upload File' : 'Change File',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            if (file != null)
+              Text(
+                file!.path.split('/').last, // Display the file name
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            if (file != null)
+              IconButton(
+                icon: Icon(Icons.delete, color: Colors.red),
+                onPressed: _removeImage, // Allow the user to remove the image
+              ),
+          ],
+        ),
+        SizedBox(height: 10),
+        if (file != null)
+          Image.file(
+            file!, // Display the selected image as a preview
+            width: 100,
+            height: 100,
+            errorBuilder: (context, error, stackTrace) {
+              return Text('Preview not available.');
+            },
+          ),
+      ],
+    );
   }
 
   Future<void> _loadTeamMembers() async {
@@ -61,28 +144,33 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
     }
   }
 
-  Future<void> _pickFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-    if (result != null) {
-      setState(() {
-        _file = result.files.first;
-      });
-    }
-  }
-
   Future<String?> _uploadFile(String taskId) async {
-    if (_file == null || _file!.bytes == null) {
-      print("No file selected or file data is invalid.");
-      return null;
-    }
     try {
-      Reference storageRef =
-          _storage.ref().child('task_files/$taskId/${_file!.name}');
-      UploadTask uploadTask = storageRef.putData(_file!.bytes!);
-      TaskSnapshot snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      if (_file != null && _file!.bytes != null) {
+        // رفع ملف من الذاكرة
+        Reference storageRef =
+            _storage.ref().child('task_files/$taskId/${_file!.name}');
+        UploadTask uploadTask = storageRef.putData(_file!.bytes!);
+        TaskSnapshot snapshot = await uploadTask;
+        final url = await snapshot.ref.getDownloadURL();
+        print("📎 File URL: $url");
+        return url;
+      } else if (file != null) {
+        // رفع صورة من الجهاز
+        String fileName = basename(file!.path);
+        Reference storageRef =
+            _storage.ref().child('task_images/$taskId/$fileName');
+        UploadTask uploadTask = storageRef.putFile(file!);
+        TaskSnapshot snapshot = await uploadTask;
+        final url = await snapshot.ref.getDownloadURL();
+        print("🖼️ Image URL: $url");
+        return url;
+      } else {
+        print("❗ No file selected");
+        return null;
+      }
     } catch (e) {
-      print("Error uploading file: $e");
+      print("❌ Error uploading file: $e");
       return null;
     }
   }
@@ -92,7 +180,7 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
         _assignedToController.text.isEmpty ||
         _dueDate == null ||
         _dueTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(
           content: Text('Please fill all required fields.'),
           backgroundColor: const Color.fromARGB(255, 4, 135, 241),
@@ -126,7 +214,8 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
       'fileUrl': fileUrl,
     });
 
-    Navigator.pop(context); // Go back to the project page
+    // Navigate back to the previous page after task creation
+    Navigator.pop(this.context); // Go back to the project page
   }
 
   @override
@@ -384,32 +473,41 @@ class _AddTaskProjectPageState extends State<AddTaskProjectPage> {
                     SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _pickFile,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  const Color.fromARGB(255, 4, 135, 241),
-                            ),
-                            child: Text(
-                              _file == null ? 'Upload File' : 'File Selected',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        if (_file != null)
-                          IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                _file = null;
-                              });
-                            },
-                          ),
+                        //     Expanded(
+                        //       child: ElevatedButton(
+                        //         onPressed: () async {
+                        //           await getImage();
+                        //         },
+                        //         style: ElevatedButton.styleFrom(
+                        //           backgroundColor:
+                        //               const Color.fromARGB(255, 4, 135, 241),
+                        //         ),
+                        //         child: Text(
+                        //           _file == null ? 'Upload File' : 'File Selected',
+                        //           style: TextStyle(color: Colors.white),
+                        //         ),
+                        //       ),
+                        //     ),
+                        //     SizedBox(width: 10),
+                        //     if (_file != null)
+                        //       IconButton(
+                        //         icon: Icon(Icons.delete, color: Colors.red),
+                        //         onPressed: () {
+                        //           setState(() {
+                        //             _file = null;
+                        //           });
+                        //         },
+                        //       ),
                       ],
                     ),
-                    SizedBox(height: 20),
+                    // SizedBox(height: 20),
+                    // if (url != null)
+                    //   Image.network(
+                    //     url!,
+                    //     width: 100,
+                    //     height: 100,
+                    //   ),
+                    _buildImageUploadSection(),
                     ElevatedButton(
                       onPressed: _createTask,
                       style: ElevatedButton.styleFrom(
